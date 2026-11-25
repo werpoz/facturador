@@ -8,6 +8,8 @@ use App\Enums\Moneda;
 use App\Enums\TipoComprobante;
 use App\Models\Comprobante;
 use App\Models\Empresa;
+use App\Models\Producto;
+use App\Models\Serie;
 use App\Models\User;
 use App\Services\Facturacion\CalculadoraTotales;
 use App\Services\Facturacion\EmisionService;
@@ -97,6 +99,13 @@ class VentaRapidaService
         }
 
         return DB::transaction(function () use ($empresa, $tipo, $cliente, $serie, $items, $total, $medio, $montoRecibido, $vuelto, $usuario) {
+            // Bloqueos de escritura AL INICIO y siempre en el mismo orden (serie, luego productos por id).
+            // Sin esto, insertar los ítems toma un bloqueo de lectura sobre el producto y la serie que
+            // después hay que convertir en uno de escritura (para descontar stock y asignar el número):
+            // dos ventas simultáneas se bloquean entre sí (deadlock). Verificado con MariaDB y 8 procesos.
+            Serie::query()->whereKey($serie->id)->lockForUpdate()->first();
+            Producto::query()->whereIn('id', array_column($items, 'producto_id'))->orderBy('id')->lockForUpdate()->get(['id']);
+
             $comprobante = $empresa->comprobantes()->create([
                 'cliente_id' => $cliente->id,
                 'serie_id' => $serie->id,
@@ -123,7 +132,7 @@ class VentaRapidaService
             ]);
 
             return $comprobante;
-        });
+        }, attempts: 3); // si aun así la base detecta un bloqueo, se reintenta sola
     }
 
     private function numero(mixed $valor): string

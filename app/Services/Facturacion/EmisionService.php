@@ -13,6 +13,7 @@ use App\Models\Empresa;
 use App\Models\LogEnvio;
 use App\Models\Bitacora;
 use App\Models\Venta;
+use App\Services\Inventario\StockService;
 use App\Services\Ventas\VentaService;
 use App\Support\Permisos;
 use Brick\Math\BigDecimal;
@@ -195,6 +196,9 @@ class EmisionService
                 Comprobante::query()->whereIn('comprobante_referencia_id', $ids)->where('simulado', false)
                     ->update(['comprobante_referencia_id' => null]);
 
+                // Lo que las pruebas "vendieron" vuelve al inventario
+                app(StockService::class)->olvidarComprobantes($ids);
+
                 $ventas = Comprobante::query()->whereIn('id', $ids)->pluck('venta_id')->filter()->unique();
                 Comprobante::query()->whereIn('id', $ids)->delete(); // los ítems y logs caen en cascada
 
@@ -273,6 +277,13 @@ class EmisionService
                 $errores['items'] = "La cantidad de \"{$item->descripcion}\" debe ser mayor a cero.";
             } elseif (! $item->tipo_afectacion_igv->esGratuito() && BigDecimal::of($item->precio_unitario)->isLessThanOrEqualTo(0)) {
                 $errores['items'] = "\"{$item->descripcion}\" tiene precio cero. Si es un regalo, márcalo como Gratuito.";
+            }
+        }
+
+        // ── Stock (solo si la empresa decidió no vender sin existencias) ──
+        if (! $c->correlativo && $c->empresa->bloquear_venta_sin_stock) {
+            if ($faltan = app(StockService::class)->faltantes($c)) {
+                $errores['items'] = implode(' ', $faltan);
             }
         }
 

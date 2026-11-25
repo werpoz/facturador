@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 
 class CamposEmpresa
@@ -41,6 +42,10 @@ class CamposEmpresa
                 TextInput::make('distrito'),
                 TextInput::make('telefono')->label('Teléfono')->tel(),
                 TextInput::make('email')->label('Correo')->email(),
+                Toggle::make('bloquear_venta_sin_stock')
+                    ->label('No permitir vender sin stock')
+                    ->helperText('Apagado: se puede vender aunque el sistema marque cero (el stock queda en negativo y te avisa). Encendido: la venta se bloquea.')
+                    ->columnSpanFull(),
                 FileUpload::make('logo')->image()->disk('public')->directory('logos')->maxSize(1024)->columnSpanFull(),
             ]);
     }

@@ -3,6 +3,16 @@
 namespace App\Filament\Resources\Productos;
 
 use App\Enums\TipoAfectacionIgv;
+use App\Enums\TipoMovimientoStock;
+use App\Filament\Resources\Kardex\KardexResource;
+use App\Services\Inventario\StockService;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\Radio;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Section;
+use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 use App\Enums\UnidadMedida;
 use App\Filament\Resources\Productos\Pages\ManageProductos;
 use App\Models\Producto;
@@ -87,7 +97,30 @@ class ProductoResource extends Resource
                 ->options(TipoAfectacionIgv::class)
                 ->default(TipoAfectacionIgv::Gravado)
                 ->required(),
-            Toggle::make('activo')->default(true),
+            Toggle::make('activo')->default(true)->inline(false),
+
+            Section::make('Inventario')
+                ->columnSpanFull()
+                ->columns(3)
+                ->schema([
+                    Toggle::make('controla_stock')
+                        ->label('Controlar stock')
+                        ->helperText('Actívalo para productos físicos. Déjalo apagado en servicios.')
+                        ->default(true)
+                        ->inline(false)
+                        ->live(),
+                    TextInput::make('stock')
+                        ->label('Stock inicial')
+                        ->helperText('Cuántas unidades tienes hoy.')
+                        ->numeric()->minValue(0)->default(0)
+                        ->visibleOn('create')
+                        ->visible(fn ($get, string $operation) => $operation === 'create' && $get('controla_stock')),
+                    TextInput::make('stock_minimo')
+                        ->label('Avisarme cuando queden')
+                        ->helperText('Opcional. Aparecerá en "Productos por reponer".')
+                        ->numeric()->minValue(0)
+                        ->visible(fn ($get) => (bool) $get('controla_stock')),
+                ]),
         ]);
     }
 
@@ -109,16 +142,85 @@ class ProductoResource extends Resource
                         TipoAfectacionIgv::Exonerado => 'Exonerado',
                         TipoAfectacionIgv::Inafecto => 'Inafecto',
                     }),
+                TextColumn::make('stock')->label('Stock')->alignEnd()->sortable()->badge()
+                    ->getStateUsing(fn (Producto $record) => ! $record->controla_stock ? null
+                        : ($record->estaAgotado() ? 'Agotado' : StockService::fmt($record->stock)))
+                    ->color(fn (Producto $record) => match (true) {
+                        $record->estaAgotado() => 'danger',
+                        $record->stockBajo() => 'warning',
+                        default => 'success',
+                    })
+                    ->tooltip(fn (Producto $record) => $record->stockBajo() && ! $record->estaAgotado() ? 'Por debajo del mínimo ('.StockService::fmt($record->stock_minimo).')' : null)
+                    ->placeholder('—'),
                 IconColumn::make('activo')->boolean()->visibleFrom('md'),
             ])
             ->filters([
                 TernaryFilter::make('activo'),
+                SelectFilter::make('stock')
+                    ->label('Stock')
+                    ->options(['reponer' => 'Por reponer (agotado o bajo)', 'agotado' => 'Agotado', 'con_stock' => 'Con stock'])
+                    ->query(fn (Builder $query, array $data) => match ($data['value'] ?? null) {
+                        'reponer' => $query->where('controla_stock', true)
+                            ->where(fn (Builder $q) => $q->where('stock', '<=', 0)->orWhereColumn('stock', '<=', 'stock_minimo')),
+                        'agotado' => $query->where('controla_stock', true)->where('stock', '<=', 0),
+                        'con_stock' => $query->where('controla_stock', true)->where('stock', '>', 0),
+                        default => $query,
+                    }),
             ])
-            ->recordActions([
+            ->recordActions([ActionGroup::make([
+                self::accionStock(),
+                Action::make('kardex')
+                    ->label('Ver movimientos')
+                    ->icon('heroicon-o-arrows-up-down')
+                    ->visible(fn (Producto $record) => $record->controla_stock)
+                    ->url(fn (Producto $record) => KardexResource::getUrl('index', ['filters' => ['producto_id' => ['value' => $record->id]]])),
                 EditAction::make(),
                 DeleteAction::make(),
-            ])
+            ])])
             ->defaultSort('descripcion');
+    }
+
+    /** Ingreso de mercadería, merma o ajuste al conteo físico. Siempre deja su línea en el kardex. */
+    public static function accionStock(): Action
+    {
+        return Action::make('stock')
+            ->label('Ingresar / ajustar stock')
+            ->icon('heroicon-o-archive-box-arrow-down')
+            ->visible(fn (Producto $record) => $record->controla_stock && Permisos::puede(Permiso::GestionarProductos))
+            ->modalHeading(fn (Producto $record) => $record->descripcion)
+            ->modalDescription(fn (Producto $record) => 'Stock actual: '.StockService::fmt($record->stock).' '.$record->unidad_medida->value)
+            ->modalSubmitActionLabel('Guardar')
+            ->schema([
+                Radio::make('tipo')
+                    ->label('¿Qué pasó?')
+                    ->options([
+                        TipoMovimientoStock::Ingreso->value => 'Llegó mercadería',
+                        TipoMovimientoStock::Merma->value => 'Se perdió, dañó o venció',
+                        TipoMovimientoStock::Ajuste->value => 'Conté y el stock es otro',
+                    ])
+                    ->default(TipoMovimientoStock::Ingreso->value)
+                    ->required()
+                    ->live(),
+                TextInput::make('cantidad')
+                    ->label(fn ($get) => match ($get('tipo')) {
+                        TipoMovimientoStock::Merma->value => 'Cantidad que se perdió',
+                        TipoMovimientoStock::Ajuste->value => 'Stock real (lo que contaste)',
+                        default => 'Cantidad que ingresa',
+                    })
+                    ->numeric()->minValue(0)->required(),
+                TextInput::make('motivo')
+                    ->label(fn ($get) => $get('tipo') === TipoMovimientoStock::Ingreso->value ? 'Nota (proveedor, guía…)' : 'Motivo')
+                    ->required(fn ($get) => $get('tipo') !== TipoMovimientoStock::Ingreso->value)
+                    ->maxLength(200),
+            ])
+            ->action(function (Producto $record, array $data) {
+                $mov = app(StockService::class)->registrarManual(
+                    $record, TipoMovimientoStock::from($data['tipo']), $data['cantidad'], $data['motivo'] ?? null,
+                );
+                Notification::make()->success()
+                    ->title('Stock actualizado: quedan '.StockService::fmt($mov->stock_resultante))
+                    ->send();
+            });
     }
 
     public static function getPages(): array

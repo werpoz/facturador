@@ -16,7 +16,7 @@ class Empresa extends Model implements HasName
     protected array $bitacoraOcultar = ['pse_token'];
 
     protected $fillable = [
-        'ruc', 'regimen_tributario', 'razon_social', 'nombre_comercial', 'direccion', 'ubigeo',
+        'ruc', 'regimen_tributario', 'bloquear_venta_sin_stock', 'razon_social', 'nombre_comercial', 'direccion', 'ubigeo',
         'departamento', 'provincia', 'distrito', 'telefono', 'email', 'logo',
         'pse_proveedor', 'pse_entorno', 'pse_token',
     ];
@@ -28,6 +28,7 @@ class Empresa extends Model implements HasName
         return [
             'pse_token' => 'encrypted',
             'regimen_tributario' => RegimenTributario::class,
+            'bloquear_venta_sin_stock' => 'boolean',
         ];
     }
 
@@ -59,6 +60,11 @@ class Empresa extends Model implements HasName
     public function etiquetaBitacora(): string
     {
         return "los datos de la empresa {$this->ruc}";
+    }
+
+    public function movimientosStock(): HasMany
+    {
+        return $this->hasMany(MovimientoStock::class);
     }
 
     public function membresias(): HasMany

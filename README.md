@@ -61,6 +61,27 @@ Reglas que garantiza (`app/Services/Ventas/VentaRapidaService.php`):
 
 Los pagos se guardan en la tabla `pagos` (medio, monto, recibido, vuelto, usuario), aparte del comprobante, y se ven en el detalle de la venta.
 
+## Inventario (stock y kardex)
+Cada producto puede llevar control de stock (los servicios no). **El stock es siempre la suma de su kardex**
+(`movimientos_stock`): nada lo cambia sin dejar un movimiento, y un movimiento nunca se edita ni se borra.
+
+| Qué pasa | Efecto en el stock |
+|---|---|
+| Se **emite** una factura o boleta (POS o formulario) | Sale |
+| Se emite una nota de crédito por **devolución o anulación** (motivos 01, 02, 06, 07) | Vuelve a entrar |
+| Nota de crédito por descuento, nota de débito, un borrador | No se mueve |
+| SUNAT **rechaza** el comprobante | Se revierte solo; al emitir el corregido, vuelve a salir |
+| Llega mercadería, hay una merma o se hace un conteo | Movimiento manual desde *Productos → Ingresar / ajustar stock* (solo administradores) |
+
+- **Vender sin stock:** por defecto se permite (queda en negativo y el POS avisa), para no frenar una venta real por un
+  inventario desactualizado. Con *Datos de la empresa → No permitir vender sin stock* la venta se bloquea.
+- **Por reponer:** cada producto puede tener un mínimo; los agotados o bajos aparecen en el escritorio.
+- **Kardex:** *Productos/Servicios → Kardex*, con el comprobante, el motivo y el usuario de cada movimiento.
+- El stock se descuenta al **emitir** (el cliente ya se llevó el producto), no cuando SUNAT responde.
+
+Probado con concurrencia real en MariaDB (`tests/Concurrencia/vender_stock_en_paralelo.php`): con 100 unidades y 8 procesos
+intentando vender 200, se venden exactamente 100, sin stock negativo ni bloqueos.
+
 ## Controles de seguridad y auditoría
 
 **Roles por empresa** (`app/Enums/RolEmpresa.php`). Se administran en *Configuración → Usuarios y roles*.
@@ -172,12 +193,13 @@ config/facturacion.php            Tasa IGV, proveedores, URLs del PSE
 ```bash
 php artisan test
 ```
-90 pruebas automáticas (592 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
+104 pruebas automáticas (712 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
 
 | Archivo | Qué cubre |
 |---|---|
 | `tests/Unit/*` | Cálculo de IGV y redondeos, monto en letras |
 | `tests/Feature/FlujosTest.php` | Reglas de negocio: correlativos, reglas SUNAT, notas de crédito, PSE caído/rechazos/reintentos, aislamiento entre empresas |
+| `tests/Feature/StockTest.php` | Inventario: kardex, ventas y devoluciones, rechazo de SUNAT, venta sin stock, ajustes manuales, POS |
 | `tests/Feature/PosTest.php` | Punto de venta: cobro con vuelto, medios de pago, todo-o-nada ante errores, precios desde la base, roles, Nuevo RUS |
 | `tests/Feature/ControlesTest.php` | Impresión segura, simulador, inmutabilidad, roles, usuarios, bitácora, numeración y vigilancia de plazos |
 | `tests/Feature/VentasTest.php` | Ciclo de vida de la venta: devoluciones parciales y totales, notas de débito, rechazo y corrección, régimen Nuevo RUS, pantallas de ventas |

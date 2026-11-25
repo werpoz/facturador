@@ -498,3 +498,11 @@
 
 /* El buscador de cliente se muestra sí o sí cuando la factura aún no tiene un cliente con RUC */
 .pos-cliente-buscar.pos-forzar { display: grid !important; }
+
+/* POS: existencias */
+.pos-producto-stock { font-size: 11px; font-weight: 600; color: #0a6b3d; white-space: nowrap; }
+.pos-producto-stock.bajo { color: #a15c00; }
+.pos-producto-stock.agotado { color: #b4234a; }
+.pos-producto-agotado .pos-producto-nombre, .pos-producto-agotado .pos-producto-precio { opacity: .55; }
+.pos-item-info .pos-item-aviso { color: #a15c00; font-weight: 600; }
+.dark .pos-producto-stock { color: #6fe0a8; }

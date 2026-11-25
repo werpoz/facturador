@@ -61,14 +61,16 @@ class DatabaseSeeder extends Seeder
         }
 
         foreach ([
-            ['P001', 'Laptop 15" Core i5', UnidadMedida::Unidad, '2499.00', TipoAfectacionIgv::Gravado],
-            ['P002', 'Mouse inalámbrico', UnidadMedida::Unidad, '59.90', TipoAfectacionIgv::Gravado],
-            ['S001', 'Servicio de soporte técnico (hora)', UnidadMedida::Servicio, '80.00', TipoAfectacionIgv::Gravado],
-            ['L001', 'Libro "Contabilidad básica"', UnidadMedida::Unidad, '45.00', TipoAfectacionIgv::Exonerado],
-        ] as [$codigo, $desc, $um, $precio, $igv]) {
+            // código, descripción, unidad, precio, IGV, stock (null = no lleva stock), mínimo
+            ['P001', 'Laptop 15" Core i5', UnidadMedida::Unidad, '2499.00', TipoAfectacionIgv::Gravado, 5, 2],
+            ['P002', 'Mouse inalámbrico', UnidadMedida::Unidad, '59.90', TipoAfectacionIgv::Gravado, 40, 10],
+            ['S001', 'Servicio de soporte técnico (hora)', UnidadMedida::Servicio, '80.00', TipoAfectacionIgv::Gravado, null, null],
+            ['L001', 'Libro "Contabilidad básica"', UnidadMedida::Unidad, '45.00', TipoAfectacionIgv::Exonerado, 3, 5],
+        ] as [$codigo, $desc, $um, $precio, $igv, $stock, $minimo]) {
             $empresa->productos()->firstOrCreate(['codigo' => $codigo], [
                 'descripcion' => $desc, 'unidad_medida' => $um,
                 'precio_unitario' => $precio, 'tipo_afectacion_igv' => $igv,
+                'controla_stock' => $stock !== null, 'stock' => $stock ?? 0, 'stock_minimo' => $minimo,
             ]);
         }
     }

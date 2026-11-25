@@ -11,6 +11,7 @@ use App\Models\Cliente;
 use App\Models\Comprobante;
 use App\Models\Producto;
 use App\Services\Facturacion\CalculadoraTotales;
+use App\Services\Inventario\StockService;
 use App\Services\Ventas\VentaRapidaService;
 use App\Support\Permisos;
 use BackedEnum;
@@ -110,7 +111,13 @@ class PuntoDeVenta extends Page
             return;
         }
 
+        if (! $this->hayStockPara($producto->controla_stock ? (float) $producto->stock : null, 1, $producto->descripcion)) {
+            return;
+        }
+
         $this->carrito[$clave] = [
+            // null = no lleva control de stock (servicios)
+            'stock' => $producto->controla_stock ? (float) $producto->stock : null,
             'producto_id' => $producto->id,
             'descripcion' => $producto->descripcion,
             'precio' => number_format((float) $producto->precio_unitario, 2, '.', ''),
@@ -142,9 +149,40 @@ class PuntoDeVenta extends Page
 
     public function incrementar(string $clave): void
     {
-        if (isset($this->carrito[$clave])) {
-            $this->carrito[$clave]['cantidad'] = $this->formato($this->numero($this->carrito[$clave]['cantidad']) + 1);
+        if (! isset($this->carrito[$clave])) {
+            return;
         }
+
+        $nueva = $this->numero($this->carrito[$clave]['cantidad']) + 1;
+
+        if ($this->hayStockPara($this->carrito[$clave]['stock'] ?? null, $nueva, $this->carrito[$clave]['descripcion'])) {
+            $this->carrito[$clave]['cantidad'] = $this->formato($nueva);
+        }
+    }
+
+    /** Si la empresa no permite vender sin stock, avisa y no deja agregar más de lo que hay. */
+    private function hayStockPara(?float $stock, float $cantidad, string $descripcion): bool
+    {
+        if ($stock === null || ! $this->bloqueaSinStock() || $cantidad <= $stock) {
+            return true;
+        }
+
+        Notification::make()->warning()
+            ->title($stock <= 0 ? "\"{$descripcion}\" está agotado" : "Solo quedan ".StockService::fmt($stock)." de \"{$descripcion}\"")
+            ->send();
+
+        return false;
+    }
+
+    public function bloqueaSinStock(): bool
+    {
+        return (bool) Filament::getTenant()->bloquear_venta_sin_stock;
+    }
+
+    /** Líneas de la venta que piden más de lo que hay en el almacén */
+    public function excedeStock(array $linea): bool
+    {
+        return ($linea['stock'] ?? null) !== null && $this->numero($linea['cantidad']) > $linea['stock'];
     }
 
     public function decrementar(string $clave): void

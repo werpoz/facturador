@@ -25,14 +25,24 @@
 
             <div class="pos-grid">
                 @forelse ($this->productos as $producto)
-                    @php $enCarrito = $this->carrito['p'.$producto->id]['cantidad'] ?? null; @endphp
+                    @php
+                        $enCarrito = $this->carrito['p'.$producto->id]['cantidad'] ?? null;
+                        $agotado = $producto->estaAgotado();
+                    @endphp
                     <button type="button" wire:key="prod-{{ $producto->id }}" wire:click="agregar({{ $producto->id }})"
-                            @class(['pos-producto', 'pos-producto-activo' => $enCarrito])>
+                            @class(['pos-producto', 'pos-producto-activo' => $enCarrito, 'pos-producto-agotado' => $agotado])
+                            @disabled($agotado && $this->bloqueaSinStock())>
                         @if ($enCarrito)<span class="pos-producto-cant">{{ $enCarrito }}</span>@endif
                         <span class="pos-producto-nombre">{{ $producto->descripcion }}</span>
                         <span class="pos-producto-pie">
                             <span class="pos-producto-precio">S/ {{ number_format((float) $producto->precio_unitario, 2) }}</span>
-                            @if ($producto->codigo)<span class="pos-producto-codigo">{{ $producto->codigo }}</span>@endif
+                            @if ($producto->controla_stock)
+                                <span @class(['pos-producto-stock', 'agotado' => $agotado, 'bajo' => ! $agotado && $producto->stockBajo()])>
+                                    {{ $agotado ? 'Agotado' : 'Quedan '.\App\Services\Inventario\StockService::fmt($producto->stock) }}
+                                </span>
+                            @elseif ($producto->codigo)
+                                <span class="pos-producto-codigo">{{ $producto->codigo }}</span>
+                            @endif
                         </span>
                     </button>
                 @empty
@@ -117,6 +127,11 @@
                             <div class="pos-item-info">
                                 <strong>{{ $linea['descripcion'] }}</strong>
                                 <span>S/ {{ number_format((float) $linea['precio'], 2) }} c/u</span>
+                                @if ($this->excedeStock($linea))
+                                    <span class="pos-item-aviso">
+                                        {{ $linea['stock'] <= 0 ? 'Sin stock registrado' : 'Solo quedan '.\App\Services\Inventario\StockService::fmt($linea['stock']) }}
+                                    </span>
+                                @endif
                             </div>
                             <div class="pos-cantidad">
                                 <button type="button" wire:click="decrementar('{{ $clave }}')" aria-label="Quitar uno">−</button>
