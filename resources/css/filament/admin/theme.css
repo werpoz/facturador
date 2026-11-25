@@ -1,0 +1,254 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* ───────────── Paleta (tomada del diseño de referencia) ───────────── */
+:root {
+    --qf-fondo: #eef5f5;
+    --qf-barra: #d5e8e8;
+    --qf-primario: #0c7286;
+    --qf-primario-osc: #095a6a;
+    --qf-texto: #001524;
+    --qf-acento: #ff0066;
+    --qf-radio: 12px;
+}
+
+/* ───────────── Base ───────────── */
+.fi-body {
+    background: var(--qf-fondo);
+    color: var(--qf-texto);
+    font-size: 13px;
+}
+
+/* ───────────── Barra superior ───────────── */
+.fi-topbar {
+    background: var(--qf-fondo) !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    border: 0 !important;
+}
+
+.qf-accesos {
+    display: none;
+    gap: 6px;
+    margin-inline-start: 12px;
+}
+@media (min-width: 1024px) { .qf-accesos { display: flex; } }
+
+.qf-acceso {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 54px;
+    height: 48px;
+    padding: 0 12px;
+    background: #fff;
+    border-radius: 6px;
+    color: var(--qf-primario);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background .15s, color .15s;
+}
+.qf-acceso:hover { background: var(--qf-primario); color: #fff; }
+.qf-acceso-icono { width: 18px; height: 18px; }
+
+.qf-estado { display: flex; align-items: center; gap: 14px; margin-inline-end: 8px; }
+
+.qf-modo {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: var(--qf-acento);
+    color: #fff;
+    font-size: 12px;
+}
+.qf-modo strong { font-size: 13px; }
+.qf-modo.qf-modo-produccion { background: #16a34a; }
+@media (min-width: 768px) { .qf-modo { display: flex; } }
+
+.qf-campana { position: relative; color: var(--qf-texto); }
+.qf-campana-icono { width: 24px; height: 24px; }
+.qf-campana-badge {
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    min-width: 18px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: var(--qf-acento);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+/* ───────────── Menú lateral ───────────── */
+.fi-sidebar { background: var(--qf-fondo) !important; }
+.fi-sidebar-nav { padding-inline: 14px; }
+
+.fi-sidebar-group-btn,
+.fi-sidebar-item-btn {
+    border-radius: var(--qf-radio) !important;
+    padding: 10px 15px !important;
+}
+.fi-sidebar-group-label,
+.fi-sidebar-item-label {
+    font-size: 14.5px !important;
+    white-space: nowrap;
+    font-weight: 400 !important;
+    color: var(--qf-texto) !important;
+}
+.fi-sidebar-group-btn .fi-icon,
+.fi-sidebar-item-btn .fi-icon { color: var(--qf-texto) !important; }
+
+.fi-sidebar-item-btn:hover,
+.fi-sidebar-group-btn:hover { background: var(--qf-barra) !important; }
+
+/* Ítem activo: bloque verde azulado con texto claro */
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background: var(--qf-primario) !important;
+}
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn .fi-sidebar-item-label,
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn .fi-icon {
+    color: #fff !important;
+}
+/* Grupo que contiene el ítem activo: fondo suave */
+.fi-sidebar-group.fi-active {
+    background: var(--qf-barra);
+    border-radius: var(--qf-radio);
+    padding-bottom: 6px;
+}
+.fi-sidebar-group-items .fi-sidebar-item-label { font-size: 14px !important; }
+.fi-sidebar-item-grouped-border-part { background: var(--qf-primario) !important; }
+
+/* Selector de empresa */
+.fi-tenant-menu-trigger { border-radius: var(--qf-radio) !important; background: #fff !important; }
+
+/* ───────────── Encabezado de página: barra con fondo ───────────── */
+.fi-header {
+    background: var(--qf-barra);
+    border-radius: var(--qf-radio);
+    padding: 8px 12px 8px 22px;
+    min-height: 50px;
+    align-items: center !important;
+}
+.fi-header-heading {
+    font-size: 19px !important;
+    font-weight: 400 !important;
+    color: #333 !important;
+    letter-spacing: 0 !important;
+}
+.fi-header .fi-breadcrumbs { display: none; }
+
+/* ───────────── Tarjetas, secciones y tablas ───────────── */
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat,
+.fi-wi-chart,
+.fi-in-repeatable,
+.fi-fo-table-repeater {
+    border-radius: var(--qf-radio) !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    border: 0 !important;
+}
+.fi-section-header-heading { font-size: 16px; font-weight: 600; }
+
+.fi-wi-stats-overview-stat-value { font-size: 26px !important; font-weight: 700 !important; color: var(--qf-texto); }
+.fi-wi-stats-overview-stat-label { color: var(--qf-texto) !important; }
+
+.fi-ta-header-cell { background: var(--qf-fondo) !important; }
+.fi-ta-header-cell-label { color: var(--qf-texto) !important; font-weight: 600; }
+
+/* ───────────── Campos: estilo "caja con etiqueta" ───────────── */
+.fi-input-wrp {
+    background: var(--qf-fondo) !important;
+    border-radius: 8px !important;
+    --tw-ring-color: #cfe1e1 !important;
+}
+.fi-input-wrp:focus-within { --tw-ring-color: var(--qf-primario) !important; background: #fff !important; }
+.fi-fo-field-label-content { font-size: 12px; font-weight: 700; color: var(--qf-texto); }
+
+/* ───────────── Botones ───────────── */
+.fi-btn { border-radius: 8px !important; }
+
+/* ───────────── Login dividido en dos ───────────── */
+.fi-simple-layout:has(.qf-login-aside) {
+    display: grid;
+    align-items: stretch;
+    padding: 0 !important;
+    grid-template-columns: 1fr;
+    min-height: 100dvh;
+    background: #fff;
+}
+@media (min-width: 1024px) {
+    .fi-simple-layout:has(.qf-login-aside) { grid-template-columns: 58% 42%; }
+}
+.fi-simple-layout:has(.qf-login-aside) .fi-simple-main-ctn {
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+}
+.fi-simple-layout:has(.qf-login-aside) .fi-simple-main {
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    background: transparent !important;
+}
+.fi-simple-layout:has(.qf-login-aside) .fi-btn { width: 100%; padding-block: 12px; text-transform: uppercase; }
+
+.qf-login-aside {
+    display: none;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(140deg, var(--qf-primario) 0%, #0a5161 60%, var(--qf-texto) 100%);
+    color: #fff;
+}
+@media (min-width: 1024px) { .qf-login-aside { display: flex; align-items: center; justify-content: center; min-height: 100dvh; } }
+.qf-login-aside::after {
+    content: '';
+    position: absolute;
+    width: 520px; height: 520px;
+    right: -180px; top: -160px;
+    border-radius: 50%;
+    background: rgba(255, 0, 102, .18);
+}
+.qf-login-aside-inner { position: relative; z-index: 1; max-width: 520px; padding: 48px; }
+.qf-login-marca { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 28px; }
+.qf-login-aside h2 { font-size: 30px; line-height: 1.2; font-weight: 700; margin-bottom: 18px; }
+.qf-login-aside ul { margin-bottom: 34px; display: grid; gap: 8px; font-size: 15px; opacity: .92; }
+.qf-login-aside li::before { content: '✓'; margin-right: 10px; color: #7ff0d0; font-weight: 700; }
+
+.qf-mock {
+    display: grid; grid-template-columns: 70px 1fr; gap: 10px;
+    background: var(--qf-fondo); border-radius: 14px; padding: 12px; height: 220px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .35); transform: rotate(-2deg);
+}
+.qf-mock-side { display: grid; gap: 8px; align-content: start; }
+.qf-mock-side i { height: 12px; border-radius: 6px; background: #cfe1e1; }
+.qf-mock-side i:first-child { background: var(--qf-primario); }
+.qf-mock-main { display: grid; grid-template-rows: 18px 46px 1fr; gap: 10px; }
+.qf-mock-bar { background: var(--qf-barra); border-radius: 6px; }
+.qf-mock-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.qf-mock-cards b { background: #fff; border-radius: 8px; }
+.qf-mock-chart { background: #fff; border-radius: 8px; padding: 8px; }
+.qf-mock-chart svg { width: 100%; height: 100%; }
+.qf-mock-chart path { fill: rgba(255, 0, 102, .15); stroke: var(--qf-acento); stroke-width: 2; }
+
+/* ───────────── Modo oscuro: mantener legibilidad ───────────── */
+.dark .fi-body, .dark .fi-topbar, .dark .fi-sidebar { background: #0b1f24 !important; color: #e6f0f0; }
+.dark .fi-header { background: #12343c; }
+.dark .fi-header-heading, .dark .fi-sidebar-group-label, .dark .fi-sidebar-item-label,
+.dark .fi-sidebar-group-btn .fi-icon, .dark .fi-sidebar-item-btn .fi-icon, .dark .qf-campana { color: #e6f0f0 !important; }
+.dark .fi-sidebar-group.fi-active { background: #12343c; }
+.dark .fi-input-wrp { background: #0f2a31 !important; }
+.dark .qf-acceso { background: #12343c; }
+.dark .fi-ta-header-cell { background: #12343c !important; }
