@@ -8,6 +8,8 @@ use App\Filament\Resources\Comprobantes\ComprobanteResource;
 use App\Filament\Resources\Comprobantes\Pages\CreateComprobante;
 use App\Filament\Resources\Comprobantes\Pages\ListComprobantes;
 use App\Filament\Resources\Comprobantes\Pages\ViewComprobante;
+use App\Filament\Widgets\UltimosComprobantes;
+use App\Filament\Widgets\VentasOverview;
 use App\Models\Comprobante;
 use App\Models\Empresa;
 use App\Models\User;
@@ -29,7 +31,7 @@ class PanelTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->empresa = Empresa::first();
         $this->actingAs(User::first());
-        Filament::setCurrentPanel("admin");
+        Filament::setCurrentPanel('admin');
         Filament::setTenant($this->empresa);
         Filament::bootCurrentPanel();
     }
@@ -37,8 +39,8 @@ class PanelTest extends TestCase
     public function test_paginas_principales_cargan(): void
     {
         $this->get('/admin/'.$this->empresa->ruc)->assertOk();
-        Livewire::test(\App\Filament\Widgets\VentasOverview::class)->assertSee('Ventas del mes');
-        Livewire::test(\App\Filament\Widgets\UltimosComprobantes::class)->assertOk();
+        Livewire::test(VentasOverview::class)->assertSee('Ventas del mes');
+        Livewire::test(UltimosComprobantes::class)->assertOk();
         $this->get(ComprobanteResource::getUrl('index'))->assertOk();
         $this->get(ComprobanteResource::getUrl('create'))->assertOk()->assertSee('Guardar y emitir');
         $this->get('/admin/'.$this->empresa->ruc.'/clientes')->assertOk();

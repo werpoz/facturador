@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\Series;
 
+use App\Enums\Permiso;
 use App\Enums\TipoComprobante;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Series\Pages\ManageSeries;
 use App\Models\Serie;
-use App\Enums\Permiso;
 use App\Support\Permisos;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Model;
 use Closure;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
@@ -18,16 +18,16 @@ use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
 class SerieResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Serie::class;
 

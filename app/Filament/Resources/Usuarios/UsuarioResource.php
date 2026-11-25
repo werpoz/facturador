@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Usuarios;
 
 use App\Enums\Permiso;
 use App\Enums\RolEmpresa;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Usuarios\Pages\ManageUsuarios;
 use App\Models\Membresia;
 use App\Support\Permisos;
@@ -25,7 +26,7 @@ use UnitEnum;
 /** Usuarios de la empresa y su rol. Solo para administradores. */
 class UsuarioResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Membresia::class;
 
@@ -71,19 +72,12 @@ class UsuarioResource extends Resource
                 ->email()
                 ->required()
                 ->visibleOn('create')
-                ->helperText('Si esa persona ya tiene cuenta en el sistema, solo se le dará acceso a esta empresa.'),
+                ->helperText('Le llegará un correo para crear su contraseña. Si ya tiene cuenta, solo se le dará acceso a esta empresa.'),
             TextInput::make('nombre')
                 ->label('Nombre')
                 ->maxLength(255)
                 ->visibleOn('create')
                 ->helperText('Solo se usa si el usuario es nuevo.'),
-            TextInput::make('password')
-                ->label('Contraseña inicial')
-                ->password()
-                ->revealable()
-                ->minLength(8)
-                ->visibleOn('create')
-                ->helperText('Mínimo 8 caracteres. Solo se usa si el usuario es nuevo; pídele que la cambie al entrar.'),
             Radio::make('rol')
                 ->options(RolEmpresa::class)
                 ->descriptions(collect(RolEmpresa::cases())->mapWithKeys(fn (RolEmpresa $r) => [$r->value => $r->descripcion()])->all())

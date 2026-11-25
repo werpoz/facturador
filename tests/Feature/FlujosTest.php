@@ -36,6 +36,20 @@ class ProveedorCaido implements PseProvider
     }
 }
 
+/** Proveedor real (no simulado) que acepta todo: representa al PSE cuando vuelve a estar disponible */
+class ProveedorDisponible implements PseProvider
+{
+    public function nombre(): string
+    {
+        return 'disponible';
+    }
+
+    public function enviar(Comprobante $comprobante): RespuestaPse
+    {
+        return new RespuestaPse(estado: EstadoComprobante::Aceptado, codigo: '0', mensaje: 'Aceptada', hash: 'H', httpStatus: 200);
+    }
+}
+
 /**
  * Recorre los flujos de negocio de punta a punta:
  * emisión, reglas SUNAT, notas, errores del PSE, reintentos y aislamiento entre empresas.
@@ -54,7 +68,7 @@ class FlujosTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->empresa = Empresa::first();
         $this->svc = app(EmisionService::class);
-        config(['facturacion.proveedores.caido' => ProveedorCaido::class]);
+        config(['facturacion.proveedores.caido' => ProveedorCaido::class, 'facturacion.proveedores.disponible' => ProveedorDisponible::class]);
     }
 
     // ───────────────────────── helpers ─────────────────────────
@@ -96,8 +110,8 @@ class FlujosTest extends TestCase
     {
         return $this->borrador(TipoComprobante::NotaCredito, $serie, $ref->cliente, [[1, $precio]], [
             'comprobante_referencia_id' => $ref->id,
-            'motivo_codigo' => '07',
-            'motivo_descripcion' => 'Devolución',
+            'motivo_codigo' => '04',
+            'motivo_descripcion' => 'Descuento',
         ]);
     }
 
@@ -284,7 +298,7 @@ class FlujosTest extends TestCase
         $this->assertFalse($c->logs()->first()->exitoso);
 
         // El PSE vuelve: el reintento conserva el MISMO número
-        $this->empresa->update(['pse_proveedor' => 'fake']);
+        $this->empresa->update(['pse_proveedor' => 'disponible']);
         (new EnviarComprobanteJob($c->id))->handle($this->svc);
 
         $c->refresh();

@@ -12,19 +12,22 @@
  */
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 use App\Enums\MedioPago;
 use App\Enums\TipoComprobante;
 use App\Models\Empresa;
 use App\Services\Ventas\VentaRapidaService;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Validation\ValidationException;
 
 $empresa = Empresa::first();
 $producto = $empresa->productos()->where('codigo', 'P002')->first();
 $cliente = $empresa->clientes()->where('tipo_documento', '0')->value('id');
 $pos = app(VentaRapidaService::class);
-$vendidos = 0; $sinStock = 0; $errores = 0;
+$vendidos = 0;
+$sinStock = 0;
+$errores = 0;
 
 for ($i = 0; $i < (int) ($argv[1] ?? 10); $i++) {
     try {

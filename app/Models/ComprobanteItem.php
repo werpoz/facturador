@@ -46,7 +46,7 @@ class ComprobanteItem extends Model
             'tipo_afectacion_igv' => TipoAfectacionIgv::class,
             'cantidad' => 'decimal:4',
             'precio_unitario' => 'decimal:4',
-            'valor_unitario' => 'decimal:4',
+            'valor_unitario' => 'decimal:10',
             'valor_venta' => 'decimal:2',
             'igv' => 'decimal:2',
             'total' => 'decimal:2',

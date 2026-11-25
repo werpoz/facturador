@@ -4,11 +4,11 @@ namespace App\Filament\Resources\Comprobantes\Tables;
 
 use App\Enums\EstadoComprobante;
 use App\Enums\Permiso;
-use App\Support\Permisos;
 use App\Enums\TipoComprobante;
 use App\Filament\Resources\Comprobantes\ComprobanteResource;
 use App\Models\Comprobante;
 use App\Services\Facturacion\EmisionService;
+use App\Support\Permisos;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;

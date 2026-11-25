@@ -34,6 +34,7 @@ class ImprimirComprobanteController extends Controller
 
         return view('comprobantes.imprimir', [
             'c' => $comprobante,
+            'cli' => $comprobante->datosCliente(),
             'advertencia' => $advertencia,
             'qrSvg' => $advertencia ? null : self::qr($comprobante),
             'letras' => NumeroALetras::convertir($comprobante->total, $comprobante->moneda->value),
@@ -44,8 +45,7 @@ class ImprimirComprobanteController extends Controller
     public static function advertencia(Comprobante $c): ?string
     {
         return match (true) {
-            $c->simulado || ($c->empresa->usaSimulador() && ! in_array($c->estado, [EstadoComprobante::Rechazado, EstadoComprobante::Anulado], true))
-                => 'DOCUMENTO DE PRUEBA · SIN VALOR TRIBUTARIO',
+            $c->simulado || ($c->empresa->usaSimulador() && ! in_array($c->estado, [EstadoComprobante::Rechazado, EstadoComprobante::Anulado], true)) => 'DOCUMENTO DE PRUEBA · SIN VALOR TRIBUTARIO',
             in_array($c->estado, [EstadoComprobante::Aceptado, EstadoComprobante::Observado], true) => null,
             $c->estado === EstadoComprobante::Rechazado => 'RECHAZADO POR SUNAT · SIN VALOR TRIBUTARIO',
             $c->estado === EstadoComprobante::Anulado => 'COMPROBANTE ANULADO',
@@ -64,8 +64,8 @@ class ImprimirComprobanteController extends Controller
             $c->igv,
             $c->total,
             $c->fecha_emision->format('Y-m-d'),
-            $c->cliente->tipo_documento->value,
-            $c->cliente->numero_documento,
+            $c->datosCliente()['tipo']->value,
+            $c->datosCliente()['numero'],
             $c->hash,
         ]).'|';
 

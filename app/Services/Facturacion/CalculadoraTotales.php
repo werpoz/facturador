@@ -39,12 +39,12 @@ class CalculadoraTotales
             $total = $cantidad->multipliedBy($precio)->toScale(2, RoundingMode::HalfUp);
             $valorVenta = $total->dividedBy($factor, 2, RoundingMode::HalfUp);
             $igv = $total->minus($valorVenta);
-            $valorUnitario = $precio->dividedBy($factor, 4, RoundingMode::HalfUp);
+            $valorUnitario = $precio->dividedBy($factor, 10, RoundingMode::HalfUp);
         } else {
             $total = $cantidad->multipliedBy($precio)->toScale(2, RoundingMode::HalfUp);
             $valorVenta = $total;
             $igv = BigDecimal::zero()->toScale(2);
-            $valorUnitario = $precio->toScale(4, RoundingMode::HalfUp);
+            $valorUnitario = $precio->toScale(10, RoundingMode::HalfUp);
         }
 
         return [
@@ -105,10 +105,14 @@ class CalculadoraTotales
             return '0';
         }
 
-        // Acepta "1,234.50" o "1234,50" desde formularios
-        $valor = trim((string) $valor);
-        if (str_contains($valor, ',') && ! str_contains($valor, '.')) {
-            $valor = str_replace(',', '.', $valor);
+        // El último separador que aparece es el decimal; los anteriores son de miles:
+        //   "1,234.50" → 1234.50    "1.234,50" → 1234.50    "1234,50" → 1234.50    "1234.5" → 1234.5
+        $valor = str_replace(' ', '', trim((string) $valor));
+        $coma = strrpos($valor, ',');
+        $punto = strrpos($valor, '.');
+
+        if ($coma !== false && ($punto === false || $coma > $punto)) {
+            return str_replace(',', '.', str_replace('.', '', $valor));
         }
 
         return str_replace(',', '', $valor);

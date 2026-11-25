@@ -82,6 +82,30 @@ Cada producto puede llevar control de stock (los servicios no). **El stock es si
 Probado con concurrencia real en MariaDB (`tests/Concurrencia/vender_stock_en_paralelo.php`): con 100 unidades y 8 procesos
 intentando vender 200, se venden exactamente 100, sin stock negativo ni bloqueos.
 
+## Auditoría independiente
+El código pasó por tres revisiones independientes (lógica de negocio, seguridad, e integridad y concurrencia).
+Lo corregido tiene su prueba de regresión en `tests/Feature/AuditoriaTest.php`. Reglas que quedaron de esa revisión:
+
+- **Emisión con la fila bloqueada.** Dos clics (o dos usuarios) no emiten el mismo borrador dos veces; un reintento por
+  bloqueo de la base no reutiliza números. Verificado en MariaDB con 8 procesos sobre el mismo borrador
+  (`tests/Concurrencia/doble_emision.php`).
+- **El envío y sus efectos son una sola transacción** (resultado, devolución de stock, estado de la venta).
+- **Solo un rechazo explícito de SUNAT es "Rechazado".** Token vencido, límite de peticiones o una respuesta ilegible
+  dejan el comprobante en "Error" y se reintenta con el mismo número.
+- **Una devolución se controla por cantidad**, no solo por monto: no se devuelve más de lo vendido ni productos que no
+  estaban en el comprobante, y el stock regresa solo si de verdad salió.
+- **Datos del cliente congelados al emitir.** Editar un cliente no cambia lo ya emitido.
+- **Quien no gestiona productos no fija precios**: ni en el POS ni en el formulario (el precio, la descripción y el IGV
+  salen del catálogo). Lo que se vende por unidad solo admite cantidades enteras.
+- **Un comprobante numerado con el simulador nunca va a un PSE real**, y al revés.
+- **Usuarios por invitación.** El administrador no elige la contraseña de nadie: el usuario nuevo recibe un correo
+  para crearla. Requiere configurar el envío de correo (`MAIL_*` en `.env`; en desarrollo el enlace queda en `storage/logs`).
+- Un producto con historial y una empresa con registros no se pueden eliminar; el logo no acepta SVG;
+  el seeder de demostración no corre en producción.
+
+**Pendiente de esa auditoría (depende del PSE):** consultar el estado de un comprobante antes de reenviarlo,
+por si el PSE lo aceptó pero la respuesta se perdió.
+
 ## Controles de seguridad y auditoría
 
 **Roles por empresa** (`app/Enums/RolEmpresa.php`). Se administran en *Configuración → Usuarios y roles*.
@@ -89,7 +113,7 @@ Las notas de crédito y débito (anular, devolver, descontar) son solo para admi
 Los permisos se verifican en la pantalla **y** en el servicio de emisión, así que no se pueden saltar.
 
 **Registro cerrado.** No hay página pública de registro. Las empresas las da de alta un *superadmin*
-(`facturador:crear-admin`) y cada empresa agrega a sus usuarios. Para abrirlo: `REGISTRO_ABIERTO=true`.
+(`facturador:crear-admin`) y cada empresa invita a sus usuarios por correo. Para abrirlo: `REGISTRO_ABIERTO=true`.
 
 **Bitácora** (*Configuración → Bitácora*). Registra quién creó, modificó o eliminó clientes, productos, series,
 usuarios, datos de la empresa y comprobantes, con el valor anterior y el nuevo. Los secretos (token del PSE) se
@@ -193,12 +217,13 @@ config/facturacion.php            Tasa IGV, proveedores, URLs del PSE
 ```bash
 php artisan test
 ```
-104 pruebas automáticas (712 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
+121 pruebas automáticas (819 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
 
 | Archivo | Qué cubre |
 |---|---|
 | `tests/Unit/*` | Cálculo de IGV y redondeos, monto en letras |
 | `tests/Feature/FlujosTest.php` | Reglas de negocio: correlativos, reglas SUNAT, notas de crédito, PSE caído/rechazos/reintentos, aislamiento entre empresas |
+| `tests/Feature/AuditoriaTest.php`, `ReintentoEmisionTest.php` | Regresiones de la auditoría independiente: una prueba por cada hallazgo corregido |
 | `tests/Feature/StockTest.php` | Inventario: kardex, ventas y devoluciones, rechazo de SUNAT, venta sin stock, ajustes manuales, POS |
 | `tests/Feature/PosTest.php` | Punto de venta: cobro con vuelto, medios de pago, todo-o-nada ante errores, precios desde la base, roles, Nuevo RUS |
 | `tests/Feature/ControlesTest.php` | Impresión segura, simulador, inmutabilidad, roles, usuarios, bitácora, numeración y vigilancia de plazos |

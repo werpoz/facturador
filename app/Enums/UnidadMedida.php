@@ -17,6 +17,12 @@ enum UnidadMedida: string implements HasLabel
     case Galon = 'GLL';
     case Hora = 'HUR';
 
+    /** Un kilo o un metro se pueden vender por partes; una unidad, una caja o una docena, no. */
+    public function permiteFracciones(): bool
+    {
+        return in_array($this, [self::Kilogramo, self::Litro, self::Metro, self::Galon, self::Hora, self::Servicio], true);
+    }
+
     public function getLabel(): string
     {
         return match ($this) {

@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\Clientes;
 
+use App\Enums\Permiso;
 use App\Enums\TipoDocumentoIdentidad;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Clientes\Pages\ManageClientes;
 use App\Models\Cliente;
-use App\Enums\Permiso;
 use App\Support\Permisos;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Model;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
@@ -17,16 +17,16 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Unique;
 use UnitEnum;
 
 class ClienteResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Cliente::class;
 

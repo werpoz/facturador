@@ -97,13 +97,13 @@ class VentaService
             'acreditado' => (string) $acreditado->toScale(2),
             'debitado' => (string) $debitado->toScale(2),
             'neto' => (string) $total->minus($acreditado)->plus($debitado)->toScale(2),
-            'estado' => $this->estado($principal, $total, $acreditado),
+            'estado' => $this->estado($principal, $total, $acreditado, $total->minus($acreditado)->plus($debitado)),
         ])->save();
 
         return $venta;
     }
 
-    private function estado(Comprobante $principal, BigDecimal $total, BigDecimal $acreditado): EstadoVenta
+    private function estado(Comprobante $principal, BigDecimal $total, BigDecimal $acreditado, BigDecimal $neto): EstadoVenta
     {
         return match ($principal->estado) {
             EstadoComprobante::Borrador => EstadoVenta::Borrador,
@@ -111,7 +111,8 @@ class VentaService
             EstadoComprobante::Rechazado => EstadoVenta::Rechazada,
             EstadoComprobante::Anulado => EstadoVenta::Anulada,
             EstadoComprobante::Aceptado, EstadoComprobante::Observado => match (true) {
-                $total->isPositive() && $acreditado->isGreaterThanOrEqualTo($total) => EstadoVenta::Anulada,
+                // Con una nota de débito de por medio puede quedar saldo aunque se acredite el total original
+                $total->isPositive() && $neto->isLessThanOrEqualTo(0) => EstadoVenta::Anulada,
                 $acreditado->isPositive() => EstadoVenta::ConDevolucion,
                 default => EstadoVenta::Confirmada,
             },

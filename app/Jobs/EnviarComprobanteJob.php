@@ -2,12 +2,12 @@
 
 namespace App\Jobs;
 
-use App\Enums\EstadoComprobante;
 use App\Models\Comprobante;
 use App\Services\Facturacion\EmisionService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 
 class EnviarComprobanteJob implements ShouldBeUnique, ShouldQueue
 {
@@ -16,6 +16,12 @@ class EnviarComprobanteJob implements ShouldBeUnique, ShouldQueue
     public int $tries = 6;
 
     public int $timeout = 60;
+
+    /**
+     * El candado de "trabajo único" solo evita encolar duplicados durante un minuto.
+     * Antes duraba todos los reintentos (más de una hora) y un "Reintentar" manual se perdía en silencio.
+     */
+    public int $uniqueFor = 60;
 
     public function __construct(public int $comprobanteId) {}
 
@@ -35,11 +41,23 @@ class EnviarComprobanteJob implements ShouldBeUnique, ShouldQueue
     {
         $comprobante = Comprobante::find($this->comprobanteId);
 
-        // Idempotencia: si ya fue aceptado/rechazado no se reenvía
-        if (! $comprobante || ! in_array($comprobante->estado, [EstadoComprobante::Pendiente, EstadoComprobante::Error], true)) {
+        if (! $comprobante) {
             return;
         }
 
-        $service->enviar($comprobante);
+        // Exclusión real entre procesos: si otro trabajador ya lo está enviando, este espera su turno.
+        $candado = Cache::lock("enviar-comprobante:{$comprobante->id}", 120);
+
+        if (! $candado->get()) {
+            $this->release(20);
+
+            return;
+        }
+
+        try {
+            $service->enviar($comprobante); // idempotente: no reenvía lo que ya tiene resultado
+        } finally {
+            $candado->release();
+        }
     }
 }

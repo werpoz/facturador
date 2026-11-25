@@ -4,12 +4,13 @@ namespace App\Filament\Resources\Ventas;
 
 use App\Enums\EstadoVenta;
 use App\Enums\Permiso;
-use App\Support\Permisos;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Comprobantes\ComprobanteResource;
 use App\Filament\Resources\Ventas\Pages\ListVentas;
 use App\Filament\Resources\Ventas\Pages\ViewVenta;
 use App\Models\Comprobante;
 use App\Models\Venta;
+use App\Support\Permisos;
 use BackedEnum;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -34,7 +35,7 @@ use UnitEnum;
  */
 class VentaResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Venta::class;
 

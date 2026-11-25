@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\Comprobante;
-use App\Services\Ventas\VentaService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -39,11 +37,6 @@ return new class extends Migration
         Schema::table('comprobantes', function (Blueprint $table) {
             $table->foreignId('venta_id')->nullable()->after('empresa_id')->constrained('ventas')->nullOnDelete();
         });
-
-        // Comprobantes que ya existían: se les crea su venta (primero facturas/boletas, luego notas)
-        $ventas = app(VentaService::class);
-        Comprobante::query()->orderByRaw("case when tipo_comprobante in ('01','03') then 0 else 1 end")->orderBy('id')
-            ->each(fn (Comprobante $c) => $ventas->sincronizar($c));
     }
 
     public function down(): void

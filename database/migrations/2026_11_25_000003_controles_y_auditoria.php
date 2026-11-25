@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Comprobante;
+use App\Services\Ventas\VentaService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +34,11 @@ return new class extends Migration
                 'valor' => (int) DB::table('ventas')->where('empresa_id', $empresa->id)->max('numero'),
             ]);
         });
+
+        // Comprobantes anteriores a la capa de ventas: se les crea su venta (ya existe la tabla de secuencias)
+        $ventas = app(VentaService::class);
+        Comprobante::query()->orderByRaw("case when tipo_comprobante in ('01','03') then 0 else 1 end")->orderBy('id')
+            ->each(fn ($c) => $ventas->sincronizar($c));
 
         Schema::table('comprobantes', function (Blueprint $table) {
             // true = se "envió" con el proveedor simulado: no tiene valor tributario

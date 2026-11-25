@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Comprobantes\Schemas;
 
+use App\Filament\Resources\Ventas\VentaResource;
 use App\Models\Comprobante;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -27,7 +28,7 @@ class ComprobanteInfolist
                         TextEntry::make('fecha_emision')->label('Emisión')->date('d/m/Y'),
                         TextEntry::make('venta.codigo')->label('Venta')->color('primary')
                             ->url(fn (Comprobante $record) => $record->venta_id
-                                ? \App\Filament\Resources\Ventas\VentaResource::getUrl('view', ['record' => $record->venta_id]) : null)
+                                ? VentaResource::getUrl('view', ['record' => $record->venta_id]) : null)
                             ->placeholder('-'),
                         TextEntry::make('cliente.razon_social')->label('Cliente')->columnSpan(2),
                         TextEntry::make('cliente.numero_documento')

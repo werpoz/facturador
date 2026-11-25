@@ -52,6 +52,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Formato de código
+        if: matrix.base == 'sqlite'
+        run: ./vendor/bin/pint --test
+
       - name: Ejecutar pruebas (SQLite)
         if: matrix.base == 'sqlite'
         run: php artisan test

@@ -12,6 +12,7 @@ use App\Models\Comprobante;
 use App\Services\Facturacion\EmisionService;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Support\Icons\Heroicon;
 
@@ -102,7 +103,7 @@ class CreateComprobante extends CreateRecord
         ];
     }
 
-    protected function getCreatedNotification(): ?\Filament\Notifications\Notification
+    protected function getCreatedNotification(): ?Notification
     {
         return $this->emitirAlGuardar ? null : parent::getCreatedNotification();
     }

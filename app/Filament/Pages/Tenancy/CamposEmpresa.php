@@ -46,7 +46,7 @@ class CamposEmpresa
                     ->label('No permitir vender sin stock')
                     ->helperText('Apagado: se puede vender aunque el sistema marque cero (el stock queda en negativo y te avisa). Encendido: la venta se bloquea.')
                     ->columnSpanFull(),
-                FileUpload::make('logo')->image()->disk('public')->directory('logos')->maxSize(1024)->columnSpanFull(),
+                FileUpload::make('logo')->image()->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])->disk('public')->directory('logos')->maxSize(1024)->columnSpanFull(),
             ]);
     }
 

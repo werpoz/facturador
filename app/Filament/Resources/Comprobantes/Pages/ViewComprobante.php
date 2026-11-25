@@ -4,10 +4,10 @@ namespace App\Filament\Resources\Comprobantes\Pages;
 
 use App\Enums\EstadoComprobante;
 use App\Enums\Permiso;
-use App\Support\Permisos;
 use App\Filament\Resources\Comprobantes\ComprobanteResource;
 use App\Filament\Resources\Comprobantes\Tables\ComprobantesTable;
 use App\Models\Comprobante;
+use App\Support\Permisos;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;

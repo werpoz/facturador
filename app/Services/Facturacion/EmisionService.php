@@ -8,15 +8,18 @@ use App\Enums\TipoComprobante;
 use App\Enums\TipoDocumentoIdentidad;
 use App\Events\ComprobanteAceptado;
 use App\Jobs\EnviarComprobanteJob;
+use App\Models\Bitacora;
 use App\Models\Comprobante;
+use App\Models\ComprobanteItem;
 use App\Models\Empresa;
 use App\Models\LogEnvio;
-use App\Models\Bitacora;
+use App\Models\Producto;
 use App\Models\Venta;
 use App\Services\Inventario\StockService;
 use App\Services\Ventas\VentaService;
 use App\Support\Permisos;
 use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -49,12 +52,6 @@ class EmisionService
     /** Valida reglas SUNAT, asigna correlativo y manda el comprobante a la cola de envío. */
     public function emitir(Comprobante $comprobante): Comprobante
     {
-        if (! $comprobante->estado->puedeEnviarse()) {
-            throw ValidationException::withMessages([
-                'estado' => "El comprobante está en estado {$comprobante->estado->getLabel()} y no puede enviarse.",
-            ]);
-        }
-
         // Quién puede emitir qué (las notas de crédito/débito son la vía típica de fraude)
         Permisos::exigir(
             $comprobante->tipo_comprobante->esNota() ? Permiso::EmitirNotas : Permiso::EmitirVentas,
@@ -64,72 +61,126 @@ class EmisionService
                 : 'Tu usuario no tiene permiso para emitir comprobantes.',
         );
 
-        if (! $comprobante->correlativo) {
-            $this->recalcular($comprobante); // en un reintento ya está congelado: no se recalcula
-        }
-        $this->validar($comprobante);
-        $this->validarConexion($comprobante);
+        // Todo ocurre con la fila del comprobante BLOQUEADA y leída de nuevo de la base:
+        //  - dos clics (o dos usuarios) no pueden emitir el mismo borrador dos veces;
+        //  - nadie puede editarlo entre la validación y la numeración;
+        //  - si la base reintenta por un bloqueo, cada intento parte de datos frescos
+        //    (nunca reutiliza un número de un intento anterior que se deshizo).
+        $emitido = DB::transaction(function () use ($comprobante) {
+            /** @var Comprobante $c */
+            $c = Comprobante::query()->lockForUpdate()->findOrFail($comprobante->id);
 
-        DB::transaction(function () use ($comprobante) {
-            if (! $comprobante->correlativo) {
-                $comprobante->correlativo = $comprobante->serieRelacion->siguienteCorrelativo();
+            if (! $c->estado->puedeEnviarse()) {
+                throw ValidationException::withMessages([
+                    'estado' => "El comprobante está en estado {$c->estado->getLabel()} y no puede enviarse.",
+                ]);
             }
-            $comprobante->estado = EstadoComprobante::Pendiente;
-            $comprobante->save();
+
+            // Notas: se bloquea también el comprobante que modifican, para que dos notas
+            // simultáneas no acrediten (ni devuelvan mercadería) más de lo que corresponde.
+            if ($c->comprobante_referencia_id) {
+                Comprobante::query()->lockForUpdate()->find($c->comprobante_referencia_id);
+            }
+
+            $primeraVez = $c->correlativo === null;
+
+            if ($primeraVez) {
+                $this->recalcular($c); // en un reintento ya está congelado: no se recalcula
+            }
+            $this->validar($c);
+            $this->validarConexion($c);
+
+            if ($primeraVez) {
+                $cliente = $c->cliente;
+                $c->forceFill([
+                    'correlativo' => $c->serieRelacion->siguienteCorrelativo(),
+                    'emitido_at' => now(),
+                    // Se fija AHORA con qué proveedor se emitió; no cambia aunque la empresa cambie después
+                    'simulado' => $c->empresa->usaSimulador(),
+                    'cliente_tipo_documento' => $cliente->tipo_documento,
+                    'cliente_numero_documento' => $cliente->numero_documento,
+                    'cliente_razon_social' => $cliente->razon_social,
+                    'cliente_direccion' => $cliente->direccion,
+                ]);
+            }
+
+            $c->estado = EstadoComprobante::Pendiente;
+            $c->save();
+
+            return $c;
         }, attempts: 3);
 
-        Bitacora::registrar('emitió', 'Emitió '.$comprobante->etiquetaBitacora().' por '.$comprobante->total, $comprobante);
+        Bitacora::registrar('emitió', 'Emitió '.$emitido->etiquetaBitacora().' por '.$emitido->total, $emitido);
 
-        EnviarComprobanteJob::dispatch($comprobante->id)->afterCommit();
+        EnviarComprobanteJob::dispatch($emitido->id)->afterCommit();
 
         return $comprobante->refresh();
     }
 
-    /** Ejecuta el envío real (lo llama el Job). */
-    public function enviar(Comprobante $comprobante): RespuestaPse
+    /**
+     * Ejecuta el envío real (lo llama el Job). Devuelve null si no había nada que enviar.
+     *
+     * El resultado y TODOS sus efectos (devolver stock si lo rechazan, actualizar la venta)
+     * se guardan en una sola transacción: o queda todo, o no queda nada y se reintenta.
+     */
+    public function enviar(Comprobante $comprobante): ?RespuestaPse
     {
+        $comprobante->refresh();
+
+        if (! in_array($comprobante->estado, [EstadoComprobante::Pendiente, EstadoComprobante::Error], true)) {
+            return null; // ya tiene un resultado definitivo: no se reenvía
+        }
+
+        // Un comprobante numerado con el simulador jamás se envía a un PSE real, y al revés
+        if ($comprobante->simulado !== $comprobante->empresa->usaSimulador()) {
+            return null;
+        }
+
         $provider = $this->provider($comprobante->empresa);
         $comprobante->increment('intentos_envio');
 
         try {
             $respuesta = $provider->enviar($comprobante);
         } catch (\Throwable $e) {
-            LogEnvio::create([
-                'comprobante_id' => $comprobante->id,
-                'accion' => 'enviar',
-                'proveedor' => $provider->nombre(),
-                'response' => ['error' => $e->getMessage()],
-                'exitoso' => false,
-            ]);
-            $comprobante->update([
-                'estado' => EstadoComprobante::Error,
-                'sunat_mensaje' => 'Error de comunicación: '.$e->getMessage(),
-            ]);
+            DB::transaction(function () use ($comprobante, $provider, $e) {
+                LogEnvio::create([
+                    'comprobante_id' => $comprobante->id,
+                    'accion' => 'enviar',
+                    'proveedor' => $provider->nombre(),
+                    'response' => ['error' => mb_substr($e->getMessage(), 0, 2000)],
+                    'exitoso' => false,
+                ]);
+                $comprobante->update([
+                    'estado' => EstadoComprobante::Error,
+                    'sunat_mensaje' => mb_substr('Error de comunicación: '.$e->getMessage(), 0, 1000),
+                ]);
+            });
 
             throw $e;
         }
 
-        LogEnvio::create([
-            'comprobante_id' => $comprobante->id,
-            'accion' => 'enviar',
-            'proveedor' => $provider->nombre(),
-            'http_status' => $respuesta->httpStatus,
-            'request' => $respuesta->request,
-            'response' => $respuesta->response,
-            'exitoso' => $respuesta->exitoso(),
-        ]);
+        DB::transaction(function () use ($comprobante, $provider, $respuesta) {
+            LogEnvio::create([
+                'comprobante_id' => $comprobante->id,
+                'accion' => 'enviar',
+                'proveedor' => $provider->nombre(),
+                'http_status' => $respuesta->httpStatus,
+                'request' => $respuesta->request,
+                'response' => $respuesta->response,
+                'exitoso' => $respuesta->exitoso(),
+            ]);
 
-        $comprobante->update([
-            'estado' => $respuesta->estado,
-            'simulado' => $provider->nombre() === 'fake',
-            'sunat_codigo' => $respuesta->codigo,
-            'sunat_mensaje' => $respuesta->mensaje,
-            'hash' => $respuesta->hash,
-            'enlace_pdf' => $respuesta->enlacePdf,
-            'enlace_xml' => $respuesta->enlaceXml,
-            'enlace_cdr' => $respuesta->enlaceCdr,
-            'enviado_at' => now(),
-        ]);
+            $comprobante->update([
+                'estado' => $respuesta->estado,
+                'sunat_codigo' => $respuesta->codigo,
+                'sunat_mensaje' => $respuesta->mensaje,
+                'hash' => $respuesta->hash,
+                'enlace_pdf' => $respuesta->enlacePdf,
+                'enlace_xml' => $respuesta->enlaceXml,
+                'enlace_cdr' => $respuesta->enlaceCdr,
+                'enviado_at' => now(),
+            ]);
+        });
 
         if ($respuesta->exitoso()) {
             ComprobanteAceptado::dispatch($comprobante);
@@ -280,6 +331,22 @@ class EmisionService
             }
         }
 
+        // ── Cantidades enteras en lo que se vende por unidad ──
+        // (0.01 laptops a S/ 2,499 saldrían en S/ 24.99: una forma de vender por debajo del precio)
+        foreach ($c->items as $item) {
+            $cantidad = BigDecimal::of($item->cantidad);
+            if (! $item->unidad_medida->permiteFracciones() && ! $cantidad->isEqualTo($cantidad->toScale(0, RoundingMode::Down))) {
+                $errores['items'] = "\"{$item->descripcion}\" se vende por {$item->unidad_medida->getLabel()}: la cantidad debe ser un número entero.";
+            }
+        }
+
+        // ── Quien no puede gestionar productos tampoco puede alterar precios al facturar ──
+        if (! $c->correlativo && ! $tipo->esNota() && ! Permisos::puede(Permiso::GestionarProductos, $c->empresa)) {
+            if ($problema = $this->itemsFueraDeCatalogo($c)) {
+                $errores['items'] = $problema;
+            }
+        }
+
         // ── Stock (solo si la empresa decidió no vender sin existencias) ──
         if (! $c->correlativo && $c->empresa->bloquear_venta_sin_stock) {
             if ($faltan = app(StockService::class)->faltantes($c)) {
@@ -329,6 +396,12 @@ class EmisionService
                     if (BigDecimal::of($c->total)->isGreaterThan($saldo)) {
                         $errores['total'] = "El total de la nota ({$c->total}) supera el saldo que se puede acreditar de {$ref->numero} ({$saldo}).";
                     }
+
+                    // Devolución o anulación: no se puede devolver más unidades de las que se vendieron
+                    if (in_array($c->motivo_codigo, StockService::MOTIVOS_QUE_DEVUELVEN, true)
+                        && ($exceso = $this->excesoDeDevolucion($c, $ref))) {
+                        $errores['items'] = $exceso;
+                    }
                 }
             }
 
@@ -348,6 +421,63 @@ class EmisionService
         if ($errores) {
             throw ValidationException::withMessages($errores);
         }
+    }
+
+    /**
+     * En una devolución, cada línea debe corresponder a un producto del comprobante original, y lo devuelto
+     * (sumando las otras notas vigentes) no puede superar lo vendido. Se controla por CANTIDAD, no solo por monto:
+     * si no, una nota de S/ 5 con 500 unidades a S/ 0.01 "devolvería" mercadería que nunca salió.
+     */
+    private function excesoDeDevolucion(Comprobante $nota, Comprobante $ref): ?string
+    {
+        $porProducto = fn ($items) => $items->groupBy(fn ($i) => $i->producto_id ?? 'txt:'.mb_strtolower(trim($i->descripcion)))
+            ->map(fn ($grupo) => $grupo->reduce(fn (BigDecimal $s, $i) => $s->plus($i->cantidad), BigDecimal::zero()));
+
+        $vendido = $porProducto($ref->items);
+
+        $otrasNotas = Comprobante::query()
+            ->where('comprobante_referencia_id', $ref->id)
+            ->where('tipo_comprobante', TipoComprobante::NotaCredito)
+            ->whereIn('motivo_codigo', StockService::MOTIVOS_QUE_DEVUELVEN)
+            ->whereIn('estado', [EstadoComprobante::Pendiente, EstadoComprobante::Aceptado, EstadoComprobante::Observado, EstadoComprobante::Error])
+            ->whereKeyNot($nota->id)
+            ->pluck('id');
+        $yaDevuelto = $porProducto(ComprobanteItem::query()->whereIn('comprobante_id', $otrasNotas)->get());
+
+        foreach ($porProducto($nota->items) as $clave => $cantidad) {
+            $descripcion = $nota->items->first(fn ($i) => ($i->producto_id ?? 'txt:'.mb_strtolower(trim($i->descripcion))) === $clave)->descripcion;
+
+            if (! isset($vendido[$clave])) {
+                return "\"{$descripcion}\" no está en {$ref->numero}: solo se puede devolver lo que se vendió en ese comprobante.";
+            }
+
+            $disponible = $vendido[$clave]->minus($yaDevuelto[$clave] ?? BigDecimal::zero());
+            if ($cantidad->isGreaterThan($disponible)) {
+                return "De \"{$descripcion}\" se vendieron ".StockService::fmt($vendido[$clave]).' y quedan '.StockService::fmt($disponible).' por devolver; la nota pide '.StockService::fmt($cantidad).'.';
+            }
+        }
+
+        return null;
+    }
+
+    /** Para usuarios sin permiso de gestionar productos: cada ítem debe ser del catálogo, a su precio y con su afectación. */
+    private function itemsFueraDeCatalogo(Comprobante $c): ?string
+    {
+        $productos = Producto::query()->where('empresa_id', $c->empresa_id)
+            ->whereIn('id', $c->items->pluck('producto_id')->filter())->get()->keyBy('id');
+
+        foreach ($c->items as $item) {
+            $p = $item->producto_id ? $productos->get($item->producto_id) : null;
+
+            if (! $p) {
+                return "\"{$item->descripcion}\" no es un producto del catálogo. Tu usuario solo puede vender productos registrados.";
+            }
+            if (! BigDecimal::of($item->precio_unitario)->isEqualTo($p->precio_unitario) || $item->tipo_afectacion_igv !== $p->tipo_afectacion_igv) {
+                return "El precio o el IGV de \"{$p->descripcion}\" no coincide con el catálogo (S/ {$p->precio_unitario}). Tu usuario no puede modificarlo.";
+            }
+        }
+
+        return null;
     }
 
     /**

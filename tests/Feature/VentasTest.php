@@ -78,7 +78,7 @@ class VentasTest extends TestCase
         return $this->svc->emitir($this->borrador($tipo, $serie, $precio, [
             'cliente_id' => $ref->cliente_id,
             'comprobante_referencia_id' => $ref->id,
-            'motivo_codigo' => '07',
+            'motivo_codigo' => '04', // ajuste de monto; las devoluciones de mercadería se prueban en StockTest
             'motivo_descripcion' => 'Ajuste',
         ]))->refresh();
     }

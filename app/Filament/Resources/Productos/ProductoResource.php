@@ -2,41 +2,41 @@
 
 namespace App\Filament\Resources\Productos;
 
+use App\Enums\Permiso;
 use App\Enums\TipoAfectacionIgv;
 use App\Enums\TipoMovimientoStock;
-use App\Filament\Resources\Kardex\KardexResource;
-use App\Services\Inventario\StockService;
-use Filament\Actions\Action;
-use Filament\Actions\ActionGroup;
-use Filament\Forms\Components\Radio;
-use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
-use Filament\Tables\Filters\SelectFilter;
-use Illuminate\Database\Eloquent\Builder;
 use App\Enums\UnidadMedida;
+use App\Filament\Concerns\EtiquetasEnEspanol;
+use App\Filament\Resources\Kardex\KardexResource;
 use App\Filament\Resources\Productos\Pages\ManageProductos;
 use App\Models\Producto;
-use App\Enums\Permiso;
+use App\Services\Inventario\StockService;
 use App\Support\Permisos;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Model;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 class ProductoResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Producto::class;
 
@@ -175,7 +175,7 @@ class ProductoResource extends Resource
                     ->visible(fn (Producto $record) => $record->controla_stock)
                     ->url(fn (Producto $record) => KardexResource::getUrl('index', ['filters' => ['producto_id' => ['value' => $record->id]]])),
                 EditAction::make(),
-                DeleteAction::make(),
+                DeleteAction::make()->hidden(fn (Producto $record) => $record->tieneHistorial()),
             ])])
             ->defaultSort('descripcion');
     }

@@ -22,7 +22,7 @@ class CalculadoraTotalesTest extends TestCase
         $this->assertSame('100.00', $r['valor_venta']);
         $this->assertSame('18.00', $r['igv']);
         $this->assertSame('118.00', $r['total']);
-        $this->assertSame('100.0000', $r['valor_unitario']);
+        $this->assertSame('100.0000000000', $r['valor_unitario']);
     }
 
     public function test_total_respeta_precio_al_publico_aunque_haya_redondeo(): void

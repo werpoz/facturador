@@ -8,6 +8,7 @@ use App\Enums\UnidadMedida;
 use App\Models\Concerns\RegistraBitacora;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Producto extends Model
 {
@@ -32,6 +33,13 @@ class Producto extends Model
             }
         });
 
+        // Borrarlo arrastraría su kardex y dejaría comprobantes sin producto: con historial, se desactiva
+        static::deleting(function (Producto $p) {
+            if ($p->tieneHistorial()) {
+                throw new \LogicException("\"{$p->descripcion}\" tiene ventas o movimientos de stock: no se puede eliminar. Desactívalo.");
+            }
+        });
+
         // Después de creado, el stock solo cambia a través de StockService (que escribe el kardex)
         static::updating(function (Producto $p) {
             if ($p->isDirty('stock')) {
@@ -40,9 +48,15 @@ class Producto extends Model
         });
     }
 
-    public function movimientos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function movimientos(): HasMany
     {
         return $this->hasMany(MovimientoStock::class);
+    }
+
+    public function tieneHistorial(): bool
+    {
+        return $this->movimientos()->where('tipo', '!=', TipoMovimientoStock::Inicial)->exists()
+            || ComprobanteItem::query()->where('producto_id', $this->id)->exists();
     }
 
     public function estaAgotado(): bool

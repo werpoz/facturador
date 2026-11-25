@@ -15,6 +15,11 @@ class DatabaseSeeder extends Seeder
     /** Datos de demostración: php artisan db:seed */
     public function run(): void
     {
+        // Crea un superadministrador con contraseña conocida: sería una puerta abierta en un servidor real
+        if (app()->isProduction()) {
+            throw new \RuntimeException('El seeder de demostración no se ejecuta en producción. Crea tu usuario con: php artisan facturador:crear-admin tu@correo.com');
+        }
+
         $user = User::firstOrCreate(
             ['email' => 'admin@demo.pe'],
             ['name' => 'Administrador', 'password' => 'password'],

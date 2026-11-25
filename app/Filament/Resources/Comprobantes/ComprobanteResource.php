@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Comprobantes;
 
+use App\Enums\EstadoComprobante;
+use App\Enums\Permiso;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Comprobantes\Pages\CreateComprobante;
 use App\Filament\Resources\Comprobantes\Pages\EditComprobante;
 use App\Filament\Resources\Comprobantes\Pages\ListComprobantes;
@@ -9,22 +12,19 @@ use App\Filament\Resources\Comprobantes\Pages\ViewComprobante;
 use App\Filament\Resources\Comprobantes\Schemas\ComprobanteForm;
 use App\Filament\Resources\Comprobantes\Schemas\ComprobanteInfolist;
 use App\Filament\Resources\Comprobantes\Tables\ComprobantesTable;
-use App\Enums\EstadoComprobante;
-use App\Enums\Permiso;
-use App\Support\Permisos;
 use App\Models\Comprobante;
+use App\Support\Permisos;
 use BackedEnum;
 use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 class ComprobanteResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Comprobante::class;
 
@@ -98,7 +98,6 @@ class ComprobanteResource extends Resource
 
         return $n ? (string) $n : null;
     }
-
 
     public static function getPages(): array
     {

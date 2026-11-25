@@ -8,6 +8,7 @@ use App\Enums\TipoMovimientoStock;
 use App\Filament\Pages\PuntoDeVenta;
 use App\Filament\Resources\Kardex\Pages\ListKardex;
 use App\Filament\Resources\Productos\Pages\ManageProductos;
+use App\Filament\Widgets\StockBajo;
 use App\Models\Comprobante;
 use App\Models\Empresa;
 use App\Models\MovimientoStock;
@@ -273,7 +274,7 @@ class StockTest extends TestCase
         $this->get('/admin/'.$this->empresa->ruc.'/kardex')->assertOk();
 
         // El libro (3 de 5 mínimo) aparece por reponer; el mouse (38 de 10) no
-        Livewire::test(\App\Filament\Widgets\StockBajo::class)->assertSee('Libro')->assertSee('Stock bajo')->assertDontSee('Mouse');
+        Livewire::test(StockBajo::class)->assertSee('Libro')->assertSee('Stock bajo')->assertDontSee('Mouse');
         Livewire::test(ManageProductos::class)
             ->filterTable('stock', 'reponer')
             ->assertCanSeeTableRecords([$this->producto('L001')])

@@ -30,7 +30,7 @@ class NumeroALetras
         if ($n >= 1_000_000) {
             $millones = intdiv($n, 1_000_000);
             $resto = $n % 1_000_000;
-            $txt = $millones === 1 ? 'UN MILLÓN' : self::numero($millones).' MILLONES';
+            $txt = $millones === 1 ? 'UN MILLÓN' : self::apocope(self::numero($millones)).' MILLONES';
 
             return trim($txt.' '.($resto ? self::numero($resto) : ''));
         }

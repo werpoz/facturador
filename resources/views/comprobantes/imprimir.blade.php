@@ -87,9 +87,9 @@
     </div>
 
     <div class="datos">
-        <strong>{{ $c->cliente->tipo_documento->getLabel() }}:</strong> <span>{{ $c->cliente->numero_documento }}</span>
-        <strong>Cliente:</strong> <span>{{ $c->cliente->razon_social }}</span>
-        @if ($c->cliente->direccion)<strong>Dirección:</strong> <span>{{ $c->cliente->direccion }}</span>@endif
+        <strong>{{ $cli['tipo']->getLabel() }}:</strong> <span>{{ $cli['numero'] }}</span>
+        <strong>Cliente:</strong> <span>{{ $cli['nombre'] }}</span>
+        @if ($cli['direccion'])<strong>Dirección:</strong> <span>{{ $cli['direccion'] }}</span>@endif
         <strong>Fecha emisión:</strong> <span>{{ $c->fecha_emision->format('d/m/Y') }}</span>
         <strong>Moneda:</strong> <span>{{ $c->moneda->getLabel() }}</span>
         <strong>Forma de pago:</strong> <span>{{ $c->forma_pago === 'Credito' ? 'Crédito' : 'Contado' }}</span>

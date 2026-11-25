@@ -19,7 +19,7 @@ class PayloadBuilder
             'serie' => $c->serie,
             'numero' => $c->correlativo,
             'fecha_emision' => $c->fecha_emision->format('Y-m-d'),
-            'hora_emision' => $c->created_at?->format('H:i:s'),
+            'hora_emision' => ($c->emitido_at ?? $c->created_at)?->format('H:i:s'),
             'fecha_vencimiento' => $c->fecha_vencimiento?->format('Y-m-d'),
             'moneda' => $c->moneda->value,
             'forma_pago' => $c->forma_pago,
@@ -31,10 +31,10 @@ class PayloadBuilder
                 'ubigeo' => $c->empresa->ubigeo,
             ],
             'cliente' => [
-                'tipo_documento' => $c->cliente->tipo_documento->value,
-                'numero_documento' => $c->cliente->numero_documento,
-                'razon_social' => $c->cliente->razon_social,
-                'direccion' => $c->cliente->direccion,
+                'tipo_documento' => $c->datosCliente()['tipo']->value,
+                'numero_documento' => $c->datosCliente()['numero'],
+                'razon_social' => $c->datosCliente()['nombre'],
+                'direccion' => $c->datosCliente()['direccion'],
                 'email' => $c->cliente->email,
             ],
             'documento_referencia' => $c->referencia ? [

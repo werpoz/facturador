@@ -168,7 +168,7 @@ class PuntoDeVenta extends Page
         }
 
         Notification::make()->warning()
-            ->title($stock <= 0 ? "\"{$descripcion}\" está agotado" : "Solo quedan ".StockService::fmt($stock)." de \"{$descripcion}\"")
+            ->title($stock <= 0 ? "\"{$descripcion}\" está agotado" : 'Solo quedan '.StockService::fmt($stock)." de \"{$descripcion}\"")
             ->send();
 
         return false;
@@ -396,6 +396,7 @@ class PuntoDeVenta extends Page
                 medio: MedioPago::from($this->medio),
                 recibido: $this->recibido,
                 usuario: auth()->user(),
+                totalEsperado: $this->totales['total'],
             );
         } catch (ValidationException $e) {
             Notification::make()->danger()
@@ -404,11 +405,25 @@ class PuntoDeVenta extends Page
                 ->duration(10000)
                 ->send();
 
+            $this->actualizarPrecios(); // por si el motivo fue un cambio de precio o de stock
+
             return;
         }
 
         $this->ultimaVentaId = $comprobante->id;
         $this->dispatch('venta-registrada');
+    }
+
+    /** Pone al día precio y stock de lo que hay en la venta, según el catálogo actual. */
+    private function actualizarPrecios(): void
+    {
+        foreach ($this->carrito as $clave => $linea) {
+            if ($p = $this->catalogo()->find($linea['producto_id'])) {
+                $this->carrito[$clave]['precio'] = number_format((float) $p->precio_unitario, 2, '.', '');
+                $this->carrito[$clave]['stock'] = $p->controla_stock ? (float) $p->stock : null;
+            }
+        }
+        unset($this->totales);
     }
 
     #[Computed]

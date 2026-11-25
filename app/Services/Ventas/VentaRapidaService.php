@@ -40,6 +40,7 @@ class VentaRapidaService
         MedioPago $medio,
         string|int|float|null $recibido = null,
         ?User $usuario = null,
+        ?string $totalEsperado = null,
     ): Comprobante {
         if ($carrito === []) {
             throw ValidationException::withMessages(['carrito' => 'Agrega al menos un producto.']);
@@ -87,6 +88,13 @@ class VentaRapidaService
         }
 
         $total = BigDecimal::of($this->calculadora->calcularTotales($items)['total']);
+
+        // Si un precio cambió mientras el cajero armaba la venta, no se cobra un monto distinto al que vio
+        if ($totalEsperado !== null && ! $total->isEqualTo($this->numero($totalEsperado))) {
+            throw ValidationException::withMessages([
+                'carrito' => 'Los precios cambiaron mientras armabas la venta. El total ahora es S/ '.$total->toScale(2).'. Revisa y vuelve a cobrar.',
+            ]);
+        }
 
         $montoRecibido = null;
         $vuelto = null;

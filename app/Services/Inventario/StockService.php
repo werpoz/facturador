@@ -5,7 +5,6 @@ namespace App\Services\Inventario;
 use App\Enums\TipoComprobante;
 use App\Enums\TipoMovimientoStock;
 use App\Models\Comprobante;
-use App\Models\Empresa;
 use App\Models\MovimientoStock;
 use App\Models\Producto;
 use Brick\Math\BigDecimal;
@@ -25,7 +24,7 @@ use Illuminate\Validation\ValidationException;
 class StockService
 {
     /** Motivos de nota de crédito (catálogo 09) en los que la mercadería regresa al almacén */
-    private const MOTIVOS_QUE_DEVUELVEN = ['01', '02', '06', '07'];
+    public const MOTIVOS_QUE_DEVUELVEN = ['01', '02', '06', '07'];
 
     /** Aplica al inventario el efecto de un comprobante recién emitido. Idempotente. */
     public function aplicarComprobante(Comprobante $c): void
@@ -36,13 +35,69 @@ class StockService
             return;
         }
 
-        $signo = $tipo === TipoMovimientoStock::Venta ? -1 : 1;
-        $exigir = $signo < 0 && $c->empresa->bloquear_venta_sin_stock;
+        if ($tipo === TipoMovimientoStock::Devolucion) {
+            $this->aplicarDevolucion($c);
+
+            return;
+        }
+
+        $exigir = (bool) $c->empresa->bloquear_venta_sin_stock;
 
         // Siempre en orden de producto: dos ventas simultáneas bloquean las filas en el mismo orden (sin deadlocks)
         foreach ($this->cantidadesPorProducto($c) as $productoId => $cantidad) {
-            $this->mover($productoId, $cantidad->multipliedBy($signo), $tipo, $c, exigirDisponible: $exigir);
+            $this->mover($productoId, $cantidad->negated(), $tipo, $c, exigirDisponible: $exigir);
         }
+    }
+
+    /**
+     * Devolución: regresa al almacén, como máximo, lo que el comprobante original REALMENTE sacó
+     * y que todavía no fue devuelto por otra nota. Así una nota no puede "inventar" stock:
+     * ni con cantidades mayores a las vendidas, ni con productos que no estaban en la venta,
+     * ni cuando el producto no llevaba control de stock al venderse.
+     */
+    private function aplicarDevolucion(Comprobante $nota): void
+    {
+        if (! $nota->comprobante_referencia_id) {
+            return;
+        }
+
+        $pendiente = $this->pendientePorDevolver($nota->comprobante_referencia_id, $nota->id);
+
+        foreach ($this->cantidadesPorProducto($nota, soloConStock: false) as $productoId => $cantidad) {
+            $devolver = BigDecimal::min($cantidad, $pendiente[$productoId] ?? BigDecimal::zero());
+
+            if ($devolver->isPositive()) {
+                $this->mover($productoId, $devolver, TipoMovimientoStock::Devolucion, $nota);
+            }
+        }
+    }
+
+    /**
+     * Por producto: lo que sacó el comprobante original menos lo ya regresado por sus notas.
+     *
+     * @return array<int, BigDecimal>
+     */
+    private function pendientePorDevolver(int $referenciaId, int $excluirNotaId): array
+    {
+        $netoPorProducto = fn ($query) => $query
+            ->selectRaw('producto_id, sum(cantidad) as neto')->groupBy('producto_id')->pluck('neto', 'producto_id');
+
+        // Negativo = lo que salió con la venta (ya descontadas sus reversiones, si la rechazaron)
+        $sacado = $netoPorProducto(MovimientoStock::query()->where('comprobante_id', $referenciaId));
+
+        // Positivo = lo que ya regresaron otras notas de ese mismo comprobante
+        $regresado = $netoPorProducto(MovimientoStock::query()->whereIn('comprobante_id', Comprobante::query()
+            ->where('comprobante_referencia_id', $referenciaId)->whereKeyNot($excluirNotaId)->select('id')));
+
+        $pendiente = [];
+        foreach ($sacado as $productoId => $neto) {
+            $resto = BigDecimal::of((string) $neto)->negated()->minus((string) ($regresado[$productoId] ?? 0));
+            if ($resto->isPositive()) {
+                $pendiente[(int) $productoId] = $resto;
+            }
+        }
+
+        return $pendiente;
     }
 
     /** Deshace lo que un comprobante movió (rechazo de SUNAT o anulación). Idempotente. */
@@ -192,10 +247,11 @@ class StockService
     }
 
     /** @return array<int, BigDecimal> cantidad total por producto (solo los que llevan stock), ordenado por id */
-    private function cantidadesPorProducto(Comprobante $c): array
+    private function cantidadesPorProducto(Comprobante $c, bool $soloConStock = true): array
     {
         $items = $c->items()->whereNotNull('producto_id')->get(['producto_id', 'cantidad']);
-        $conStock = Producto::query()->whereIn('id', $items->pluck('producto_id'))->where('controla_stock', true)->pluck('id')->flip();
+        $conStock = Producto::query()->whereIn('id', $items->pluck('producto_id'))
+            ->when($soloConStock, fn ($q) => $q->where('controla_stock', true))->pluck('id')->flip();
 
         $totales = [];
         foreach ($items as $item) {

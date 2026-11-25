@@ -233,7 +233,11 @@ class PosTest extends TestCase
         Livewire::test(PuntoDeVenta::class)
             ->call('agregar', $mouse->id)
             ->set('carrito.p'.$mouse->id.'.precio', '0.10') // intento de manipular el precio desde el navegador
-            ->call('cobrar');
+            ->call('cobrar')
+            ->assertNotified('No se pudo registrar la venta') // no se cobra un monto distinto al real
+            ->assertSet('carrito.p'.$mouse->id.'.precio', '59.90') // y el precio vuelve al del catálogo
+            ->call('cobrar')
+            ->assertSee('Venta registrada');
 
         $this->assertSame('59.90', Comprobante::sole()->total);
     }

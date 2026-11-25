@@ -1,5 +1,8 @@
 <?php
 
+use App\Services\Facturacion\Providers\FakeProvider;
+use App\Services\Facturacion\Providers\GiorProvider;
+
 return [
     // Tasa de IGV vigente (18% = 16% IGV + 2% IPM)
     'igv' => env('FACTURACION_IGV', '0.18'),
@@ -22,8 +25,8 @@ return [
     'proveedor_defecto' => env('PSE_PROVEEDOR', 'fake'),
 
     'proveedores' => [
-        'fake' => App\Services\Facturacion\Providers\FakeProvider::class,
-        'gior' => App\Services\Facturacion\Providers\GiorProvider::class,
+        'fake' => FakeProvider::class,
+        'gior' => GiorProvider::class,
     ],
 
     // TODO: Reemplazar con los datos reales de la documentación de Gior Technology

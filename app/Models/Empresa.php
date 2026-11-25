@@ -57,6 +57,15 @@ class Empresa extends Model implements HasName
         return $this->hasMany(Producto::class);
     }
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Empresa $e) {
+            if ($e->comprobantes()->exists() || $e->ventas()->exists()) {
+                throw new \LogicException('Una empresa con comprobantes o ventas no se puede eliminar.');
+            }
+        });
+    }
+
     public function etiquetaBitacora(): string
     {
         return "los datos de la empresa {$this->ruc}";

@@ -3,10 +3,9 @@
 namespace App\Filament\Resources\Comprobantes\Schemas;
 
 use App\Enums\EstadoComprobante;
-use App\Enums\Permiso;
-use App\Support\Permisos;
 use App\Enums\Moneda;
 use App\Enums\MotivoNotaCredito;
+use App\Enums\Permiso;
 use App\Enums\TipoAfectacionIgv;
 use App\Enums\TipoComprobante;
 use App\Enums\UnidadMedida;
@@ -14,6 +13,7 @@ use App\Filament\Resources\Clientes\ClienteResource;
 use App\Models\Comprobante;
 use App\Models\Producto;
 use App\Services\Facturacion\CalculadoraTotales;
+use App\Support\Permisos;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -29,6 +29,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
 
 class ComprobanteForm
 {
@@ -69,7 +70,7 @@ class ComprobanteForm
                             ->label('Fecha de emisión')
                             ->default(now())
                             ->maxDate(now())
-                            ->minDate(now()->subDays(3)) // SUNAT permite hasta 3 días de antigüedad para facturas
+                            ->minDate(today()->subDays((int) config('facturacion.dias_maximos_envio', 3)))
                             ->native(false)
                             ->displayFormat('d/m/Y')
                             ->required(),
@@ -204,6 +205,7 @@ class ComprobanteForm
                                         }
                                     }),
                                 TextInput::make('descripcion')->hiddenLabel()->required()->maxLength(255)->placeholder('Descripción')
+                                    ->readOnly(fn () => ! self::precioLibre())
                                     ->extraFieldWrapperAttributes(['data-etiqueta' => 'Descripción']),
                                 Select::make('unidad_medida')->hiddenLabel()
                                     ->options(collect(UnidadMedida::cases())->mapWithKeys(fn ($u) => [$u->value => $u->value]))
@@ -219,6 +221,7 @@ class ComprobanteForm
                                 TextInput::make('precio_unitario')->hiddenLabel()
                                     ->numeric()->minValue(0)->step('0.01')->required()
                                     ->placeholder('Precio')
+                                    ->readOnly(fn () => ! self::precioLibre())
                                     ->extraFieldWrapperAttributes(['data-etiqueta' => 'Precio unitario (con IGV)'])
                                     ->live(onBlur: true),
                                 Select::make('tipo_afectacion_igv')->hiddenLabel()
@@ -229,6 +232,8 @@ class ComprobanteForm
                                         TipoAfectacionIgv::GravadoGratuito->value => 'Gratuito',
                                     ])
                                     ->default(TipoAfectacionIgv::Gravado->value)
+                                    ->disabled(fn () => ! self::precioLibre())
+                                    ->dehydrated()
                                     ->extraFieldWrapperAttributes(['data-etiqueta' => 'IGV'])
                                     ->required()
                                     ->selectablePlaceholder(false)
@@ -253,6 +258,12 @@ class ComprobanteForm
     }
 
     // ───────────────────────── helpers ─────────────────────────
+
+    /** Las notas copian ítems de un comprobante ya emitido; solo las emite quien tiene ese permiso */
+    private static function esNotaActual(): bool
+    {
+        return Permisos::puede(Permiso::EmitirNotas);
+    }
 
     public static function tipo(Get $get): ?TipoComprobante
     {
@@ -282,8 +293,34 @@ class ComprobanteForm
         return array_key_first(self::series($tipo));
     }
 
+    /** ¿El usuario puede escribir precios y descripciones libres? (solo quien gestiona productos) */
+    public static function precioLibre(): bool
+    {
+        return Permisos::puede(Permiso::GestionarProductos);
+    }
+
     public static function calcularItem(array $data): array
     {
+        // Sin ese permiso, lo que valga viene SIEMPRE del catálogo, sin importar lo que mande el navegador
+        if (! self::precioLibre() && ! self::esNotaActual()) {
+            $producto = Producto::query()->where('empresa_id', Filament::getTenant()?->id)->where('activo', true)
+                ->find($data['producto_id'] ?? null);
+
+            if (! $producto) {
+                throw ValidationException::withMessages([
+                    'data.items' => 'Elige cada producto del catálogo: tu usuario no puede vender ítems escritos a mano.',
+                ]);
+            }
+
+            $data = array_merge($data, [
+                'codigo' => $producto->codigo,
+                'descripcion' => $producto->descripcion,
+                'unidad_medida' => $producto->unidad_medida->value,
+                'precio_unitario' => $producto->precio_unitario,
+                'tipo_afectacion_igv' => $producto->tipo_afectacion_igv->value,
+            ]);
+        }
+
         $calculo = app(CalculadoraTotales::class)->calcularItem(
             $data['cantidad'] ?? 0,
             $data['precio_unitario'] ?? 0,

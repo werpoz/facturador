@@ -20,11 +20,13 @@ use App\Models\Empresa;
 use App\Models\Membresia;
 use App\Models\User;
 use App\Models\Venta;
+use App\Notifications\InvitacionUsuario;
 use App\Services\Facturacion\EmisionService;
 use Database\Seeders\DatabaseSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -238,7 +240,16 @@ class ControlesTest extends TestCase
     {
         $this->entrarComo('vendedor@demo.pe');
 
-        $boleta = $this->svc->emitir($this->borrador())->refresh();
+        // El vendedor vende productos del catálogo, a su precio
+        $mouse = $this->empresa->productos()->where('codigo', 'P002')->first();
+        $borrador = $this->borrador();
+        $borrador->items()->delete();
+        $borrador->items()->create([
+            'producto_id' => $mouse->id, 'descripcion' => $mouse->descripcion, 'cantidad' => 1,
+            'precio_unitario' => $mouse->precio_unitario, 'tipo_afectacion_igv' => '10',
+            'valor_unitario' => 0, 'valor_venta' => 0, 'igv' => 0, 'total' => 0,
+        ]);
+        $boleta = $this->svc->emitir($borrador)->refresh();
         $this->assertSame(EstadoComprobante::Aceptado, $boleta->estado);
 
         // Nota de crédito: bloqueada en el servicio, aunque llegue por otra vía
@@ -311,19 +322,33 @@ class ControlesTest extends TestCase
     {
         $this->entrarComo('admin@demo.pe');
 
-        // Usuario nuevo
+        Notification::fake();
+
+        // Usuario nuevo: el administrador NO elige su contraseña; al usuario le llega un enlace para crearla
         Livewire::test(ManageUsuarios::class)
-            ->callAction('create', ['email' => 'Nuevo@Tienda.pe', 'nombre' => 'Nuevo Cajero', 'password' => 'clave12345', 'rol' => 'vendedor'])
+            ->callAction('create', ['email' => 'Nuevo@Tienda.pe', 'nombre' => 'Nuevo Cajero', 'rol' => 'vendedor'])
             ->assertHasNoActionErrors();
         $nuevo = User::where('email', 'nuevo@tienda.pe')->firstOrFail();
         $this->assertSame(RolEmpresa::Vendedor, $nuevo->rolEn($this->empresa));
+        Notification::assertSentTo($nuevo, InvitacionUsuario::class,
+            fn ($n) => str_contains($n->url, '/admin/password-reset/reset') && str_contains($n->url, 'token='));
+
+        // Agregar una cuenta que ya existe (de otra empresa) no toca su contraseña ni le envía invitación
+        $existente = User::factory()->create(['email' => 'gerente@otra.pe']);
+        $hashAntes = $existente->password;
+        Livewire::test(ManageUsuarios::class)
+            ->callAction('create', ['email' => 'gerente@otra.pe', 'nombre' => 'Otro nombre', 'rol' => 'contador'])
+            ->assertHasNoActionErrors();
+        $this->assertSame($hashAntes, $existente->refresh()->password);
+        $this->assertNotSame('Otro nombre', $existente->name);
+        Notification::assertNotSentTo($existente, InvitacionUsuario::class);
 
         // Repetirlo: ya es miembro
         Livewire::test(ManageUsuarios::class)
             ->callAction('create', ['email' => 'nuevo@tienda.pe', 'rol' => 'admin'])
             ->assertHasActionErrors(['email']);
 
-        // Usuario nuevo sin nombre ni contraseña
+        // Usuario nuevo sin nombre
         Livewire::test(ManageUsuarios::class)
             ->callAction('create', ['email' => 'otro@tienda.pe', 'rol' => 'vendedor'])
             ->assertHasActionErrors(['nombre']);
@@ -426,7 +451,8 @@ class ControlesTest extends TestCase
         $this->assertStringContainsString('vence HOY', $admin->notifications()->first()->data['title']);
         $this->assertSame(0, $this->usuario('vendedor@demo.pe')->notifications()->count());
 
-        // Una sola alerta por día por comprobante
+        // Una sola alerta por día por comprobante (aunque el vigilante lo vuelva a encontrar atascado)
+        Comprobante::whereKey($atascado->id)->update(['updated_at' => now()->subHour()]);
         $this->artisan('facturacion:vigilar');
         $this->assertSame(1, $admin->notifications()->count());
 

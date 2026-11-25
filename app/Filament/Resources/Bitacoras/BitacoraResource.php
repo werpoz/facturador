@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Bitacoras;
 
 use App\Enums\Permiso;
+use App\Filament\Concerns\EtiquetasEnEspanol;
 use App\Filament\Resources\Bitacoras\Pages\ListBitacora;
 use App\Models\Bitacora;
 use App\Support\Permisos;
@@ -23,7 +24,7 @@ use UnitEnum;
 /** Bitácora de auditoría: solo lectura. */
 class BitacoraResource extends Resource
 {
-    use \App\Filament\Concerns\EtiquetasEnEspanol;
+    use EtiquetasEnEspanol;
 
     protected static ?string $model = Bitacora::class;
 

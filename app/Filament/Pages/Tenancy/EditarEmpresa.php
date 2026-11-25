@@ -8,8 +8,8 @@ use App\Support\Permisos;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Tenancy\EditTenantProfile;
-use Illuminate\Database\Eloquent\Model;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class EditarEmpresa extends EditTenantProfile
 {
