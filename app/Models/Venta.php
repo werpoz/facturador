@@ -50,6 +50,11 @@ class Venta extends Model
         return $this->hasMany(Comprobante::class)->orderBy('id');
     }
 
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(Pago::class)->orderBy('id');
+    }
+
     /** La factura o boleta vigente de la venta */
     public function principal(): BelongsTo
     {

@@ -3,6 +3,7 @@
     use App\Filament\Resources\Productos\ProductoResource;
 
     $accesos = [
+        ['POS', 'Punto de venta', \App\Filament\Pages\PuntoDeVenta::getUrl(), 'heroicon-o-shopping-cart'],
         ['F', 'Factura', ComprobanteResource::getUrl('create', ['tipo' => '01']), 'heroicon-o-document-text'],
         ['B', 'Boleta', ComprobanteResource::getUrl('create', ['tipo' => '03']), 'heroicon-o-receipt-percent'],
         ['NC', 'Nota de crédito', ComprobanteResource::getUrl('create', ['tipo' => '07']), 'heroicon-o-receipt-refund'],
@@ -12,8 +13,8 @@
     $puede = fn (\App\Enums\Permiso $p) => \App\Support\Permisos::puede($p);
 
     $accesos = array_values(array_filter($accesos, fn ($a) => match ($a[0]) {
+        'POS', 'B' => $puede(\App\Enums\Permiso::EmitirVentas),
         'F' => $puede(\App\Enums\Permiso::EmitirVentas) && filament()->getTenant()?->permiteFacturas(),
-        'B' => $puede(\App\Enums\Permiso::EmitirVentas),
         'NC' => $puede(\App\Enums\Permiso::EmitirNotas),
         'PRO' => $puede(\App\Enums\Permiso::VerProductos),
     }));

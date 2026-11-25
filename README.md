@@ -45,6 +45,22 @@ php artisan facturador:crear-admin tu@correo.com --nombre="Tu Nombre"
 | Dashboard | Ventas del día/mes, comparación con el mes anterior, comprobantes por atender |
 | Auditoría | Tabla `logs_envio` con cada request/response al PSE |
 
+## Punto de venta (POS)
+`Ventas → Punto de venta` (o el acceso rápido **POS**). Pensado primero para celular:
+
+1. Toca los productos (o búscalos por nombre o código; con *Enter* se agrega el primero, útil con lector de código de barras).
+2. **Ver y cobrar**: elige boleta o factura, el cliente y el medio de pago (efectivo, Yape, Plin, tarjeta, transferencia).
+3. En efectivo, toca el billete con el que te pagan y el sistema calcula el **vuelto**.
+4. **Cobrar**: emite el comprobante, registra el pago y ofrece imprimir el ticket.
+
+Reglas que garantiza (`app/Services/Ventas/VentaRapidaService.php`):
+- **Todo o nada.** Si falla una regla SUNAT, un permiso o el monto recibido no alcanza, no queda ni comprobante, ni venta, ni pago, ni se consume número.
+- **El precio sale siempre de la base de datos**, nunca del navegador: el vendedor no puede alterarlo.
+- Con cliente con RUC cambia sola a factura; la factura no se puede cobrar sin RUC. En el Nuevo RUS solo hay boleta.
+- Se puede registrar un cliente nuevo (DNI o RUC) sin salir de la venta.
+
+Los pagos se guardan en la tabla `pagos` (medio, monto, recibido, vuelto, usuario), aparte del comprobante, y se ven en el detalle de la venta.
+
 ## Controles de seguridad y auditoría
 
 **Roles por empresa** (`app/Enums/RolEmpresa.php`). Se administran en *Configuración → Usuarios y roles*.
@@ -156,12 +172,13 @@ config/facturacion.php            Tasa IGV, proveedores, URLs del PSE
 ```bash
 php artisan test
 ```
-74 pruebas automáticas (509 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
+90 pruebas automáticas (592 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
 
 | Archivo | Qué cubre |
 |---|---|
 | `tests/Unit/*` | Cálculo de IGV y redondeos, monto en letras |
 | `tests/Feature/FlujosTest.php` | Reglas de negocio: correlativos, reglas SUNAT, notas de crédito, PSE caído/rechazos/reintentos, aislamiento entre empresas |
+| `tests/Feature/PosTest.php` | Punto de venta: cobro con vuelto, medios de pago, todo-o-nada ante errores, precios desde la base, roles, Nuevo RUS |
 | `tests/Feature/ControlesTest.php` | Impresión segura, simulador, inmutabilidad, roles, usuarios, bitácora, numeración y vigilancia de plazos |
 | `tests/Feature/VentasTest.php` | Ciclo de vida de la venta: devoluciones parciales y totales, notas de débito, rechazo y corrección, régimen Nuevo RUS, pantallas de ventas |
 | `tests/Feature/PanelFlujosTest.php` | Los mismos flujos a través de las pantallas: alta de empresa, factura → error → corrección → emisión, nota de crédito precargada, búsqueda, validaciones de clientes y series |
@@ -187,6 +204,5 @@ php artisan test
 - [ ] Cuotas para ventas al crédito (SUNAT exige monto y fecha de cada cuota)
 - [ ] Detracciones, retenciones, percepciones e ICBPER
 - [ ] Envío del comprobante por correo/WhatsApp al cliente
-- [ ] Pantalla POS para boletas rápidas
 - [ ] Reporte de ventas en Excel / registro de ventas para el contador
 - [ ] Guía de remisión electrónica

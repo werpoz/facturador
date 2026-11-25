@@ -138,6 +138,11 @@ class VentaResource extends Resource
                         ->visible(fn (Venta $record) => $record->debitado > 0),
                     TextEntry::make('neto')->label('NETO')->money($money, locale: 'es_PE')->inlineLabel()
                         ->size('lg')->weight('bold')->color('primary'),
+                    TextEntry::make('pagos')->label('Cobrado con')->inlineLabel()
+                        ->visible(fn (Venta $record) => $record->pagos->isNotEmpty())
+                        ->state(fn (Venta $record) => $record->pagos
+                            ->map(fn ($p) => $p->medio->getLabel().($p->vuelto > 0 ? ' (vuelto S/ '.number_format((float) $p->vuelto, 2).')' : ''))
+                            ->join(', ')),
                 ]),
 
             Section::make('Comprobantes de esta venta')
