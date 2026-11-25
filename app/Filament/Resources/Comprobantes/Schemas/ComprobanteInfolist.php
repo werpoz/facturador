@@ -20,30 +20,35 @@ class ComprobanteInfolist
             ->components([
                 Section::make('Comprobante')
                     ->columnSpan(2)
-                    ->columns(3)
+                    ->columns(['default' => 2, 'md' => 4])
                     ->schema([
-                        TextEntry::make('tipo_comprobante')->label('Tipo'),
                         TextEntry::make('numero')->label('Número')->weight('bold')->copyable(),
                         TextEntry::make('estado')->badge(),
+                        TextEntry::make('fecha_emision')->label('Emisión')->date('d/m/Y'),
                         TextEntry::make('venta.codigo')->label('Venta')->color('primary')
                             ->url(fn (Comprobante $record) => $record->venta_id
                                 ? \App\Filament\Resources\Ventas\VentaResource::getUrl('view', ['record' => $record->venta_id]) : null)
                             ->placeholder('-'),
-                        TextEntry::make('fecha_emision')->label('Emisión')->date('d/m/Y'),
-                        TextEntry::make('forma_pago')->label('Forma de pago'),
-                        TextEntry::make('fecha_vencimiento')->label('Vencimiento')->date('d/m/Y')->placeholder('-'),
                         TextEntry::make('cliente.razon_social')->label('Cliente')->columnSpan(2),
-                        TextEntry::make('cliente.numero_documento')->label('Documento'),
+                        TextEntry::make('cliente.numero_documento')
+                            ->label(fn (Comprobante $record) => $record->cliente->tipo_documento->getLabel()),
+                        TextEntry::make('forma_pago')->label('Forma de pago')
+                            ->formatStateUsing(fn (string $state, Comprobante $record) => $state === 'Credito'
+                                ? 'Crédito'.($record->fecha_vencimiento ? ' · vence '.$record->fecha_vencimiento->format('d/m/Y') : '')
+                                : 'Contado'),
                         TextEntry::make('referencia.numero')->label('Documento que modifica')
-                            ->visible(fn (Comprobante $record) => $record->referencia !== null),
+                            ->visible(fn (Comprobante $record) => $record->referencia !== null)
+                            ->columnSpan(2),
                         TextEntry::make('motivo_descripcion')->label('Motivo')
                             ->visible(fn (Comprobante $record) => $record->referencia !== null)
                             ->columnSpan(2),
-                        TextEntry::make('observaciones')->placeholder('-')->columnSpanFull(),
+                        TextEntry::make('observaciones')->columnSpanFull()
+                            ->visible(fn (Comprobante $record) => filled($record->observaciones)),
                     ]),
 
                 Section::make('Totales')
                     ->columnSpan(1)
+                    ->extraAttributes(['class' => 'qf-totales'])
                     ->schema([
                         TextEntry::make('op_gravadas')->label('Gravadas')->money($money, locale: 'es_PE')->inlineLabel(),
                         TextEntry::make('op_exoneradas')->label('Exoneradas')->money($money, locale: 'es_PE')->inlineLabel()

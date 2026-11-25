@@ -252,3 +252,61 @@
 .dark .fi-input-wrp { background: #0f2a31 !important; }
 .dark .qf-acceso { background: #12343c; }
 .dark .fi-ta-header-cell { background: #12343c !important; }
+
+/* ═════════════ Ajustes de pulido ═════════════ */
+
+/* Menú lateral más compacto: sin grandes huecos entre secciones */
+.fi-sidebar-nav { padding-block: 10px !important; }
+.fi-sidebar-nav-groups { row-gap: 4px !important; }
+.fi-sidebar-group { gap: 2px !important; }
+.fi-sidebar-group-items { gap: 2px !important; }
+.fi-sidebar-group-btn, .fi-sidebar-item-btn { padding-block: 9px !important; }
+/* El fondo suave solo para grupos con título (no para "Escritorio", que es un ítem suelto) */
+.fi-sidebar-group.fi-active:not(:has(> .fi-sidebar-group-btn)) { background: transparent; padding-bottom: 0; }
+
+/* Tablas: cabecera de un solo color, también sobre la columna de acciones */
+.fi-ta-table thead tr { background: var(--qf-fondo) !important; }
+.fi-ta-table thead th { background: transparent !important; }
+.fi-ta-row:hover { background: #f6fafa !important; }
+
+/* Totales: etiqueta a la izquierda y monto alineado a la derecha */
+.qf-totales .fi-in-entry-has-inline-label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.qf-totales .fi-in-entry-content-col { flex: 0 0 auto; }
+.qf-totales .fi-in-entry-content, .qf-totales .fi-in-text-item { text-align: right; justify-content: flex-end; }
+
+/* Tarjetas de indicadores: ícono a la derecha, como una insignia */
+.fi-wi-stats-overview-stat { position: relative; }
+.fi-wi-stats-overview-stat-label-ctn .fi-icon {
+    position: absolute; top: 18px; right: 18px;
+    width: 38px; height: 38px; padding: 8px;
+    border-radius: 10px; background: var(--qf-fondo); color: var(--qf-primario) !important;
+}
+
+/* Botones de la barra de título un poco más compactos */
+.fi-header-actions-ctn .fi-btn { box-shadow: none; }
+
+/* Celular: el detalle de ítems muestra el nombre de cada campo (en computadora lo da la cabecera de la tabla) */
+@media (max-width: 1023px) {
+    [data-etiqueta]::before {
+        content: attr(data-etiqueta);
+        display: block; margin-bottom: 4px;
+        font-size: 12px; font-weight: 700; color: var(--qf-texto);
+    }
+    /* Los totales van al final del formulario, después de los productos */
+    .fi-grid-col:has(.qf-al-final) { order: 99; }
+    .fi-header { padding: 12px; }
+    .fi-header-heading { font-size: 17px !important; }
+}
+
+/* Celular: tablas más apretadas para que quepan sin desplazarse de lado */
+@media (max-width: 767px) {
+    .fi-ta-text, .fi-ta-header-cell, .fi-ta-actions-cell { padding-inline: 6px !important; }
+    .fi-ta-cell:first-of-type .fi-ta-text, .fi-ta-header-cell:first-of-type,
+    .fi-ta-cell-resumen .fi-ta-text, .fi-ta-header-cell-resumen { padding-inline-start: 14px !important; }
+    .fi-ta-text-description { white-space: normal; }
+}
+
+/* Modo oscuro */
+.dark .fi-ta-table thead tr { background: #12343c !important; }
+.dark .fi-ta-row:hover { background: #102c33 !important; }
+.dark .fi-wi-stats-overview-stat-label-ctn .fi-icon { background: #12343c; color: #7fd6e6 !important; }

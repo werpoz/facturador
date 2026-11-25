@@ -111,6 +111,8 @@ class ComprobanteForm
 
                 Section::make('Totales')
                     ->columnSpan(1)
+                    // En celular los totales van al final, después de los productos
+                    ->extraAttributes(['class' => 'qf-totales qf-al-final'])
                     ->schema([
                         TextEntry::make('resumen_gravadas')->inlineLabel()->label('Gravadas')
                             ->state(fn (Get $get) => self::monto($get, 'op_gravadas')),
@@ -190,6 +192,7 @@ class ComprobanteForm
                                         ->pluck('descripcion', 'id'))
                                     ->searchable()
                                     ->placeholder('Buscar...')
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'Producto'])
                                     ->live()
                                     ->afterStateUpdated(function (Set $set, $state) {
                                         if ($producto = Producto::find($state)) {
@@ -200,17 +203,23 @@ class ComprobanteForm
                                             $set('tipo_afectacion_igv', $producto->tipo_afectacion_igv);
                                         }
                                     }),
-                                TextInput::make('descripcion')->hiddenLabel()->required()->maxLength(255),
+                                TextInput::make('descripcion')->hiddenLabel()->required()->maxLength(255)->placeholder('Descripción')
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'Descripción']),
                                 Select::make('unidad_medida')->hiddenLabel()
                                     ->options(collect(UnidadMedida::cases())->mapWithKeys(fn ($u) => [$u->value => $u->value]))
                                     ->default(UnidadMedida::Unidad->value)
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'Unidad'])
                                     ->required()
                                     ->selectablePlaceholder(false),
                                 TextInput::make('cantidad')->hiddenLabel()
                                     ->numeric()->minValue(0.0001)->default(1)->required()
+                                    ->placeholder('Cant.')
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'Cantidad'])
                                     ->live(onBlur: true),
                                 TextInput::make('precio_unitario')->hiddenLabel()
                                     ->numeric()->minValue(0)->step('0.01')->required()
+                                    ->placeholder('Precio')
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'Precio unitario (con IGV)'])
                                     ->live(onBlur: true),
                                 Select::make('tipo_afectacion_igv')->hiddenLabel()
                                     ->options([
@@ -220,6 +229,7 @@ class ComprobanteForm
                                         TipoAfectacionIgv::GravadoGratuito->value => 'Gratuito',
                                     ])
                                     ->default(TipoAfectacionIgv::Gravado->value)
+                                    ->extraFieldWrapperAttributes(['data-etiqueta' => 'IGV'])
                                     ->required()
                                     ->selectablePlaceholder(false)
                                     ->live(),

@@ -50,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
                     600 => Color::convertToOklch('#0c7286'),
                     700 => Color::convertToOklch('#095a6a'),
                 ]),
-                'danger' => Color::hex('#ff0066'),
+                'danger' => Color::Rose,
                 'gray' => Color::Slate,
             ])
             ->sidebarWidth('18.75rem')

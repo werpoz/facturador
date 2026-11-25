@@ -34,6 +34,8 @@ use UnitEnum;
  */
 class VentaResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Venta::class;
 
     protected static string|BackedEnum|null $navigationIcon = null;
@@ -71,20 +73,27 @@ class VentaResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['cliente', 'principal']))
             ->columns([
-                TextColumn::make('fecha')->date('d/m/Y')->sortable(),
-                TextColumn::make('codigo')->label('Venta')->weight('bold')
+                TextColumn::make('fecha')->date('d/m/Y')->sortable()->visibleFrom('md'),
+                TextColumn::make('resumen')
+                    ->label('Venta')
+                    ->hiddenFrom('md')
+                    ->getStateUsing(fn (Venta $record) => $record->codigo)
+                    ->weight('bold')
+                    ->description(fn (Venta $record) => str($record->cliente->razon_social)->limit(18).' · '.$record->fecha->format('d/m')),
+                TextColumn::make('codigo')->label('Venta')->weight('bold')->visibleFrom('md')
                     ->searchable(query: fn (Builder $query, string $search) => $query
                         ->where('numero', (int) preg_replace('/\D/', '', $search))),
                 TextColumn::make('cliente.razon_social')->label('Cliente')
                     ->description(fn (Venta $record) => $record->cliente->numero_documento)
-                    ->searchable(['razon_social', 'numero_documento'])->wrap(),
+                    ->searchable(['razon_social', 'numero_documento'])->wrap()->visibleFrom('md'),
                 TextColumn::make('principal.numero')->label('Comprobante')
-                    ->description(fn (Venta $record) => $record->principal?->tipo_comprobante->getLabel()),
-                TextColumn::make('total')->money(fn (Venta $record) => $record->moneda->value, locale: 'es_PE')->alignEnd(),
+                    ->description(fn (Venta $record) => $record->principal?->tipo_comprobante->getLabel())->visibleFrom('lg'),
+                TextColumn::make('total')->money(fn (Venta $record) => $record->moneda->value, locale: 'es_PE')->alignEnd()->visibleFrom('lg'),
                 TextColumn::make('acreditado')->label('Devuelto')
                     ->money(fn (Venta $record) => $record->moneda->value, locale: 'es_PE')->alignEnd()
                     ->color('danger')
                     ->placeholder('-')
+                    ->visibleFrom('lg')
                     ->getStateUsing(fn (Venta $record) => $record->acreditado > 0 ? $record->acreditado : null),
                 TextColumn::make('neto')->label('Neto')->weight('bold')
                     ->money(fn (Venta $record) => $record->moneda->value, locale: 'es_PE')->alignEnd()->sortable(),
@@ -120,6 +129,7 @@ class VentaResource extends Resource
 
             Section::make('Montos')
                 ->columnSpan(1)
+                ->extraAttributes(['class' => 'qf-totales'])
                 ->schema([
                     TextEntry::make('total')->label('Vendido')->money($money, locale: 'es_PE')->inlineLabel(),
                     TextEntry::make('acreditado')->label('Devuelto')->money($money, locale: 'es_PE')->inlineLabel()

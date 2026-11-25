@@ -13,8 +13,9 @@ class CamposEmpresa
 {
     public static function datos(): Section
     {
-        return Section::make('Datos de la empresa')
-            ->columns(2)
+        return Section::make('Datos fiscales')
+            ->description('Aparecen en tus comprobantes tal como los escribas aquí.')
+            ->columns(['default' => 1, 'md' => 2, 'xl' => 4])
             ->schema([
                 TextInput::make('ruc')
                     ->label('RUC')
@@ -24,17 +25,17 @@ class CamposEmpresa
                     ->rule('regex:/^(10|15|16|17|20)\d{9}$/')
                     ->validationMessages(['regex' => 'El RUC debe empezar con 10, 15, 16, 17 o 20.'])
                     ->unique(Empresa::class, 'ruc', ignoreRecord: true),
-                TextInput::make('razon_social')->label('Razón social')->required()->maxLength(255),
+                TextInput::make('razon_social')->label('Razón social')->required()->maxLength(255)->columnSpan(['xl' => 3]),
                 Select::make('regimen_tributario')
                     ->label('Régimen tributario')
                     ->options(RegimenTributario::class)
                     ->default(RegimenTributario::Mype)
                     ->required()
                     ->helperText('Si no lo sabes, consúltalo en tu ficha RUC. En el Nuevo RUS solo se emiten boletas.')
-                    ->columnSpanFull(),
-                TextInput::make('nombre_comercial')->label('Nombre comercial')->maxLength(255),
-                TextInput::make('direccion')->label('Dirección fiscal')->maxLength(255),
-                TextInput::make('ubigeo')->label('Ubigeo')->length(6)->numeric()->helperText('Ej. 150101 (Lima - Lima - Lima)'),
+                    ->columnSpan(['md' => 2]),
+                TextInput::make('nombre_comercial')->label('Nombre comercial')->maxLength(255)->columnSpan(['md' => 2]),
+                TextInput::make('direccion')->label('Dirección fiscal')->maxLength(255)->columnSpanFull(),
+                TextInput::make('ubigeo')->label('Ubigeo')->length(6)->numeric()->placeholder('150101'),
                 TextInput::make('departamento'),
                 TextInput::make('provincia'),
                 TextInput::make('distrito'),

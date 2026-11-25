@@ -26,6 +26,8 @@ use UnitEnum;
 
 class ProductoResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Producto::class;
 
     protected static string|BackedEnum|null $navigationIcon = null;
@@ -93,18 +95,21 @@ class ProductoResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('codigo')->label('Código')->searchable()->toggleable(),
-                TextColumn::make('descripcion')->label('Descripción')->searchable()->wrap(),
-                TextColumn::make('unidad_medida')->label('Unidad')->formatStateUsing(fn ($state) => $state?->value),
+                TextColumn::make('codigo')->label('Código')->searchable()->toggleable()->visibleFrom('md'),
+                TextColumn::make('resumen')->label('Producto')->hiddenFrom('md')->wrap()
+                    ->getStateUsing(fn (Producto $record) => $record->descripcion)
+                    ->description(fn (Producto $record) => collect([$record->codigo, $record->unidad_medida->value, $record->activo ? null : 'Inactivo'])->filter()->join(' · ')),
+                TextColumn::make('descripcion')->label('Descripción')->searchable()->wrap()->visibleFrom('md'),
+                TextColumn::make('unidad_medida')->label('Unidad')->formatStateUsing(fn ($state) => $state?->value)->visibleFrom('md'),
                 TextColumn::make('precio_unitario')->label('Precio')->money('PEN', locale: 'es_PE')->sortable(),
-                TextColumn::make('tipo_afectacion_igv')->label('IGV')->badge()
+                TextColumn::make('tipo_afectacion_igv')->label('IGV')->badge()->visibleFrom('md')
                     ->formatStateUsing(fn (TipoAfectacionIgv $state) => match ($state) {
                         TipoAfectacionIgv::Gravado => 'Gravado',
                         TipoAfectacionIgv::GravadoGratuito => 'Gratuito',
                         TipoAfectacionIgv::Exonerado => 'Exonerado',
                         TipoAfectacionIgv::Inafecto => 'Inafecto',
                     }),
-                IconColumn::make('activo')->boolean(),
+                IconColumn::make('activo')->boolean()->visibleFrom('md'),
             ])
             ->filters([
                 TernaryFilter::make('activo'),

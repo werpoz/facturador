@@ -23,6 +23,8 @@ use UnitEnum;
 /** Bitácora de auditoría: solo lectura. */
 class BitacoraResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Bitacora::class;
 
     protected static ?string $slug = 'bitacora';
@@ -65,16 +67,19 @@ class BitacoraResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('created_at')->label('Fecha y hora')->dateTime('d/m/Y H:i:s')->sortable(),
-                TextColumn::make('usuario_nombre')->label('Usuario')->searchable(),
+                TextColumn::make('created_at')->label('Fecha y hora')->dateTime('d/m/Y H:i:s')->sortable()->visibleFrom('md'),
+                TextColumn::make('resumen')->label('Registro')->hiddenFrom('md')->wrap()
+                    ->getStateUsing(fn (Bitacora $record) => $record->descripcion)
+                    ->description(fn (Bitacora $record) => $record->usuario_nombre.' · '.$record->created_at->format('d/m H:i')),
+                TextColumn::make('usuario_nombre')->label('Usuario')->searchable()->visibleFrom('md'),
                 TextColumn::make('accion')->label('Acción')->badge()->color(fn (string $state) => match ($state) {
                     'creó' => 'success',
                     'eliminó' => 'danger',
                     'emitió' => 'primary',
                     'modificó' => 'warning',
                     default => 'gray',
-                }),
-                TextColumn::make('descripcion')->label('Detalle')->searchable()->wrap(),
+                })->visibleFrom('md'),
+                TextColumn::make('descripcion')->label('Detalle')->searchable()->wrap()->visibleFrom('md'),
                 TextColumn::make('ip')->label('IP')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('id', 'desc')

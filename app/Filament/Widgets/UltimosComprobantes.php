@@ -12,7 +12,7 @@ use Filament\Widgets\TableWidget;
 
 class UltimosComprobantes extends TableWidget
 {
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     protected int|string|array $columnSpan = 'full';
 
@@ -28,9 +28,10 @@ class UltimosComprobantes extends TableWidget
                 ->limit(8))
             ->paginated(false)
             ->columns([
-                TextColumn::make('fecha_emision')->label('Fecha')->date('d/m/Y'),
-                TextColumn::make('numero')->label('Número')->weight('bold'),
-                TextColumn::make('cliente.razon_social')->label('Cliente')->limit(40),
+                TextColumn::make('fecha_emision')->label('Fecha')->date('d/m/Y')->visibleFrom('md'),
+                TextColumn::make('numero')->label('Número')->weight('bold')
+                    ->description(fn (Comprobante $r) => $r->tipo_comprobante->getLabel()),
+                TextColumn::make('cliente.razon_social')->label('Cliente')->limit(40)->visibleFrom('md'),
                 TextColumn::make('total')->money(fn (Comprobante $r) => $r->moneda->value, locale: 'es_PE')->alignEnd(),
                 TextColumn::make('estado')->badge(),
             ])

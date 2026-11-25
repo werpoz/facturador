@@ -27,6 +27,8 @@ use UnitEnum;
 
 class SerieResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Serie::class;
 
     protected static string|BackedEnum|null $navigationIcon = null;
@@ -107,10 +109,10 @@ class SerieResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('tipo_comprobante')->label('Tipo')->badge(),
-                TextColumn::make('serie')->weight('bold'),
+                TextColumn::make('serie')->weight('bold')
+                    ->description(fn (Serie $record) => $record->tipo_comprobante->getLabel()),
                 TextColumn::make('correlativo')->label('Último número'),
-                IconColumn::make('activo')->boolean(),
+                IconColumn::make('activo')->boolean()->label('Activa'),
             ])
             ->recordActions([
                 EditAction::make(),

@@ -8,6 +8,7 @@ use App\Filament\Resources\Usuarios\Pages\ManageUsuarios;
 use App\Models\Membresia;
 use App\Support\Permisos;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Radio;
@@ -24,6 +25,8 @@ use UnitEnum;
 /** Usuarios de la empresa y su rol. Solo para administradores. */
 class UsuarioResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Membresia::class;
 
     protected static ?string $slug = 'usuarios';
@@ -94,12 +97,12 @@ class UsuarioResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with('user'))
             ->columns([
-                TextColumn::make('user.name')->label('Nombre')->searchable(),
-                TextColumn::make('user.email')->label('Correo')->searchable(),
+                TextColumn::make('user.name')->label('Nombre')->searchable()
+                    ->description(fn (Membresia $record) => $record->user?->email),
                 TextColumn::make('rol')->badge(),
-                TextColumn::make('created_at')->label('Desde')->date('d/m/Y'),
+                TextColumn::make('created_at')->label('Desde')->date('d/m/Y')->visibleFrom('md'),
             ])
-            ->recordActions([
+            ->recordActions([ActionGroup::make([
                 EditAction::make()
                     ->label('Cambiar rol')
                     ->before(function (Membresia $record, array $data, EditAction $action) {
@@ -118,7 +121,7 @@ class UsuarioResource extends Resource
                             static::detener($action, 'No puedes quitar al único administrador.');
                         }
                     }),
-            ]);
+            ])]);
     }
 
     public static function esUltimoAdmin(Membresia $m): bool

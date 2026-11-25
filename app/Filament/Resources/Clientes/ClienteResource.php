@@ -26,6 +26,8 @@ use UnitEnum;
 
 class ClienteResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Cliente::class;
 
     protected static string|BackedEnum|null $navigationIcon = null;
@@ -110,12 +112,15 @@ class ClienteResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->withCount('comprobantes'))
             ->columns([
-                TextColumn::make('tipo_documento')->label('Tipo')->badge(),
-                TextColumn::make('numero_documento')->label('Documento')->searchable()->copyable(),
-                TextColumn::make('razon_social')->label('Nombre / Razón social')->searchable()->wrap(),
-                TextColumn::make('email')->label('Correo')->toggleable(),
+                TextColumn::make('tipo_documento')->label('Tipo')->badge()->visibleFrom('md'),
+                TextColumn::make('resumen')->label('Cliente')->hiddenFrom('md')->wrap()
+                    ->getStateUsing(fn (Cliente $record) => $record->razon_social)
+                    ->description(fn (Cliente $record) => $record->tipo_documento->getLabel().' '.$record->numero_documento),
+                TextColumn::make('numero_documento')->label('Documento')->searchable()->copyable()->visibleFrom('md'),
+                TextColumn::make('razon_social')->label('Nombre / Razón social')->searchable()->wrap()->visibleFrom('md'),
+                TextColumn::make('email')->label('Correo')->toggleable()->visibleFrom('lg'),
                 TextColumn::make('telefono')->label('Teléfono')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('comprobantes_count')->label('Comprobantes')->alignEnd()->toggleable(),
+                TextColumn::make('comprobantes_count')->label('Comprobantes')->alignEnd()->toggleable()->visibleFrom('md'),
             ])
             ->filters([
                 SelectFilter::make('tipo_documento')->label('Tipo de documento')->options(TipoDocumentoIdentidad::class),

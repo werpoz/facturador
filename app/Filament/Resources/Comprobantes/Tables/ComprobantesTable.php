@@ -30,17 +30,26 @@ class ComprobantesTable
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with('cliente'))
             ->columns([
-                TextColumn::make('fecha_emision')->label('Fecha')->date('d/m/Y')->sortable(),
-                TextColumn::make('tipo_comprobante')->label('Tipo')->badge()->color('gray'),
+                TextColumn::make('fecha_emision')->label('Fecha')->date('d/m/Y')->sortable()->visibleFrom('md'),
+                // En celular: una sola columna con número, cliente y fecha (sin desplazarse de lado)
+                TextColumn::make('resumen')
+                    ->label('Comprobante')
+                    ->hiddenFrom('md')
+                    ->getStateUsing(fn (Comprobante $r) => $r->numero)
+                    ->weight('bold')
+                    ->description(fn (Comprobante $r) => str($r->cliente->razon_social)->limit(18).' · '.$r->fecha_emision->format('d/m')),
+                TextColumn::make('tipo_comprobante')->label('Tipo')->badge()->color('gray')->visibleFrom('lg'),
                 TextColumn::make('numero')
                     ->label('Número')
                     ->weight('bold')
+                    ->visibleFrom('md')
                     ->searchable(query: fn (Builder $query, string $search) => self::buscarNumero($query, $search)),
                 TextColumn::make('cliente.razon_social')
                     ->label('Cliente')
                     ->description(fn (Comprobante $r) => $r->cliente->numero_documento)
                     ->searchable(['razon_social', 'numero_documento'])
-                    ->wrap(),
+                    ->wrap()
+                    ->visibleFrom('md'),
                 TextColumn::make('total')
                     ->money(fn (Comprobante $r) => $r->moneda->value, locale: 'es_PE')
                     ->sortable()
@@ -55,7 +64,9 @@ class ComprobantesTable
                         default => 'Quedan '.$r->diasParaVencer().' día'.($r->diasParaVencer() === 1 ? '' : 's'),
                     })
                     ->color(fn (Comprobante $r) => $r->diasParaVencer() <= 0 ? 'danger' : ($r->diasParaVencer() === 1 ? 'warning' : 'gray'))
-                    ->placeholder(''),
+                    ->placeholder('')
+                    // Solo ocupa espacio donde importa: en la pestaña de pendientes
+                    ->visible(fn ($livewire) => ($livewire->activeTab ?? null) === 'por-atender'),
             ])
             ->defaultSort('id', 'desc')
             ->filters([

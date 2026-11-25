@@ -24,6 +24,8 @@ use UnitEnum;
 
 class ComprobanteResource extends Resource
 {
+    use \App\Filament\Concerns\EtiquetasEnEspanol;
+
     protected static ?string $model = Comprobante::class;
 
     protected static string|BackedEnum|null $navigationIcon = null;
