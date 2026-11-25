@@ -310,3 +310,9 @@
 .dark .fi-ta-table thead tr { background: #12343c !important; }
 .dark .fi-ta-row:hover { background: #102c33 !important; }
 .dark .fi-wi-stats-overview-stat-label-ctn .fi-icon { background: #12343c; color: #7fd6e6 !important; }
+
+/* Submenú: solo un punto por ítem (sin la línea de unión, que se cortaba sobre el ítem activo) */
+.fi-sidebar-item-grouped-border-part-not-first,
+.fi-sidebar-item-grouped-border-part-not-last { display: none !important; }
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn .fi-sidebar-item-grouped-border-part { background: #fff !important; }
+.dark .fi-sidebar-item-grouped-border-part { background: #7fd6e6 !important; }
