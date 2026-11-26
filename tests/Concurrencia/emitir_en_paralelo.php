@@ -10,14 +10,15 @@
  * Resultado esperado: cada proceso imprime "ok=25 err=0" y en la base
  *   select count(*), count(distinct correlativo), max(correlativo) from comprobantes;   → 200, 200, 200
  */
-require __DIR__.'/../../vendor/autoload.php';
-$app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
 use App\Enums\EstadoComprobante;
 use App\Enums\TipoComprobante;
 use App\Models\Empresa;
 use App\Services\Facturacion\EmisionService;
 use Illuminate\Contracts\Console\Kernel;
+
+require __DIR__.'/../../vendor/autoload.php';
+$app = require __DIR__.'/../../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $e = Empresa::first();
 $svc = app(EmisionService::class);

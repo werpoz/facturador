@@ -25,7 +25,7 @@ class CalculadoraTotales
     /**
      * @param  string|int|float  $cantidad
      * @param  string|int|float  $precioUnitario  precio con IGV (o valor referencial si es gratuito)
-     * @return array{valor_unitario:string, precio_unitario:string, valor_venta:string, igv:string, total:string}
+     * @return array{valor_unitario:string, valor_referencial:?string, precio_unitario:string, valor_venta:string, igv:string, total:string}
      */
     public function calcularItem($cantidad, $precioUnitario, TipoAfectacionIgv|string $afectacion): array
     {
@@ -35,7 +35,19 @@ class CalculadoraTotales
         $precio = BigDecimal::of($this->normalizar($precioUnitario));
         $factor = BigDecimal::one()->plus($this->tasaIgv);
 
-        if ($afectacion->pagaIgv()) {
+        $valorReferencial = null;
+
+        if ($afectacion->esGratuito()) {
+            // Transferencia gratuita: el cliente no paga nada (precio y total 0), pero se informa
+            // cuánto vale lo regalado. El precio ingresado es el de mercado CON IGV; de ahí salen el valor
+            // referencial unitario (sin IGV), la base (valor de venta) y el IGV, que se declaran aparte.
+            $valorMercado = $cantidad->multipliedBy($precio)->toScale(2, RoundingMode::HalfUp);
+            $valorVenta = $valorMercado->dividedBy($factor, 2, RoundingMode::HalfUp);
+            $igv = $valorMercado->minus($valorVenta);
+            $valorReferencial = $precio->dividedBy($factor, 10, RoundingMode::HalfUp);
+            $valorUnitario = BigDecimal::zero()->toScale(10);
+            $total = BigDecimal::zero()->toScale(2);
+        } elseif ($afectacion->pagaIgv()) {
             $total = $cantidad->multipliedBy($precio)->toScale(2, RoundingMode::HalfUp);
             $valorVenta = $total->dividedBy($factor, 2, RoundingMode::HalfUp);
             $igv = $total->minus($valorVenta);
@@ -49,6 +61,7 @@ class CalculadoraTotales
 
         return [
             'valor_unitario' => (string) $valorUnitario,
+            'valor_referencial' => $valorReferencial ? (string) $valorReferencial : null,
             'precio_unitario' => (string) $precio->toScale(4, RoundingMode::HalfUp),
             'valor_venta' => (string) $valorVenta,
             'igv' => (string) $igv->toScale(2),
@@ -58,7 +71,7 @@ class CalculadoraTotales
 
     /**
      * @param  array<int, array{tipo_afectacion_igv: TipoAfectacionIgv|string, valor_venta: string, igv: string, total: string}>  $items
-     * @return array{op_gravadas:string, op_exoneradas:string, op_inafectas:string, op_gratuitas:string, igv:string, total:string}
+     * @return array{op_gravadas:string, op_exoneradas:string, op_inafectas:string, op_gratuitas:string, igv_gratuitas:string, igv:string, total:string}
      */
     public function calcularTotales(array $items): array
     {
@@ -68,6 +81,7 @@ class CalculadoraTotales
             'op_exoneradas' => $suma(),
             'op_inafectas' => $suma(),
             'op_gratuitas' => $suma(),
+            'igv_gratuitas' => $suma(),
             'igv' => $suma(),
             'total' => $suma(),
         ];
@@ -82,6 +96,7 @@ class CalculadoraTotales
             // Las operaciones gratuitas se informan, pero no se cobran ni suman al IGV a pagar
             if ($afectacion->esGratuito()) {
                 $t['op_gratuitas'] = $t['op_gratuitas']->plus($valorVenta);
+                $t['igv_gratuitas'] = $t['igv_gratuitas']->plus(BigDecimal::of($item['igv']));
 
                 continue;
             }

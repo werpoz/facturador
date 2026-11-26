@@ -9,6 +9,7 @@ use App\Models\Concerns\RegistraBitacora;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Producto extends Model
 {
@@ -38,6 +39,9 @@ class Producto extends Model
             if ($p->tieneHistorial()) {
                 throw new \LogicException("\"{$p->descripcion}\" tiene ventas o movimientos de stock: no se puede eliminar. Desactívalo.");
             }
+
+            // Lo único que puede quedarle es su "stock inicial"; la base no deja borrar un producto con kardex
+            DB::table('movimientos_stock')->where('producto_id', $p->id)->delete();
         });
 
         // Después de creado, el stock solo cambia a través de StockService (que escribe el kardex)

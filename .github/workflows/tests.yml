@@ -70,3 +70,17 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: secret
         run: php artisan test
+
+      # Varios procesos a la vez contra MySQL: detecta bloqueos mutuos, números duplicados,
+      # stock negativo y doble emisión, que la suite normal no puede ver.
+      - name: Pruebas de concurrencia (MySQL)
+        if: matrix.base == 'mysql'
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: facturador_test
+          DB_USERNAME: root
+          DB_PASSWORD: secret
+        run: bash tests/Concurrencia/correr.sh
+

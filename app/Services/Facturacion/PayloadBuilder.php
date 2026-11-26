@@ -49,6 +49,7 @@ class PayloadBuilder
                 'op_exoneradas' => $c->op_exoneradas,
                 'op_inafectas' => $c->op_inafectas,
                 'op_gratuitas' => $c->op_gratuitas,
+                'igv_gratuitas' => $c->igv_gratuitas,
                 'igv' => $c->igv,
                 'total' => $c->total,
             ],
@@ -58,12 +59,16 @@ class PayloadBuilder
                 'unidad_medida' => $i->unidad_medida->value,
                 'cantidad' => $i->cantidad,
                 'valor_unitario' => $i->valor_unitario,
-                'precio_unitario' => $i->precio_unitario,
+                // En un ítem gratuito el precio es 0; lo que se informa es su valor referencial (sin IGV)
+                'precio_unitario' => $i->tipo_afectacion_igv->esGratuito() ? '0.0000' : $i->precio_unitario,
+                'valor_referencial' => $i->valor_referencial,
+                'es_gratuito' => $i->tipo_afectacion_igv->esGratuito(),
                 'tipo_afectacion_igv' => $i->tipo_afectacion_igv->value,
                 'valor_venta' => $i->valor_venta,
                 'igv' => $i->igv,
                 'total' => $i->total,
             ])->values()->all(),
+            'leyendas' => $c->leyendas(),
             'observaciones' => $c->observaciones,
         ];
     }

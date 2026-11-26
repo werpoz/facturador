@@ -103,7 +103,17 @@ Lo corregido tiene su prueba de regresión en `tests/Feature/AuditoriaTest.php`.
 - Un producto con historial y una empresa con registros no se pueden eliminar; el logo no acepta SVG;
   el seeder de demostración no corre en producción.
 
-**Pendiente de esa auditoría (depende del PSE):** consultar el estado de un comprobante antes de reenviarlo,
+Cerrado después (`tests/Feature/CierreHallazgosTest.php`):
+- **Operaciones gratuitas.** El ítem regalado lleva valor unitario 0 y, aparte, su valor referencial (sin IGV);
+  la base y el IGV de lo gratuito se informan por separado (`op_gratuitas`, `igv_gratuitas`) y no se cobran;
+  el comprobante lleva la leyenda 1002 de transferencia gratuita. *Falta confirmarlo contra el PSE real.*
+- **Protección en la propia base de datos.** Las llaves foráneas impiden borrar un producto con kardex o ventas,
+  y una empresa con comprobantes, ventas, pagos, kardex o bitácora, aunque alguien entre directo a la base.
+- **Bitácora de ítems.** Agregar, cambiar o quitar un ítem de un borrador ya existente queda registrado.
+- **Concurrencia en la integración continua.** `bash tests/Concurrencia/correr.sh` corre los cuatro escenarios
+  contra MySQL y falla si algo no cuadra; el flujo de GitHub lo ejecuta en cada cambio.
+
+**Único pendiente de la auditoría (depende del PSE):** consultar el estado de un comprobante antes de reenviarlo,
 por si el PSE lo aceptó pero la respuesta se perdió.
 
 ## Controles de seguridad y auditoría
@@ -217,12 +227,13 @@ config/facturacion.php            Tasa IGV, proveedores, URLs del PSE
 ```bash
 php artisan test
 ```
-121 pruebas automáticas (819 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
+128 pruebas automáticas (862 verificaciones), que pasan en SQLite y en MySQL/MariaDB. En GitHub corren solas en cada cambio (`.github/workflows/tests.yml`).
 
 | Archivo | Qué cubre |
 |---|---|
 | `tests/Unit/*` | Cálculo de IGV y redondeos, monto en letras |
 | `tests/Feature/FlujosTest.php` | Reglas de negocio: correlativos, reglas SUNAT, notas de crédito, PSE caído/rechazos/reintentos, aislamiento entre empresas |
+| `tests/Concurrencia/correr.sh` | Concurrencia real en MySQL (no corre con `php artisan test`): emisión en paralelo, venta con stock limitado, doble emisión y notas simultáneas |
 | `tests/Feature/AuditoriaTest.php`, `ReintentoEmisionTest.php` | Regresiones de la auditoría independiente: una prueba por cada hallazgo corregido |
 | `tests/Feature/StockTest.php` | Inventario: kardex, ventas y devoluciones, rechazo de SUNAT, venta sin stock, ajustes manuales, POS |
 | `tests/Feature/PosTest.php` | Punto de venta: cobro con vuelto, medios de pago, todo-o-nada ante errores, precios desde la base, roles, Nuevo RUS |

@@ -11,10 +11,6 @@
  *
  * Resultado esperado: un solo "emitido"; los demás "rechazado". Un solo número usado y un solo envío.
  */
-require __DIR__.'/../../vendor/autoload.php';
-$app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
-
 use App\Enums\EstadoComprobante;
 use App\Enums\TipoComprobante;
 use App\Models\Comprobante;
@@ -22,6 +18,10 @@ use App\Models\Empresa;
 use App\Services\Facturacion\EmisionService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Validation\ValidationException;
+
+require __DIR__.'/../../vendor/autoload.php';
+$app = require __DIR__.'/../../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $empresa = Empresa::first();
 $svc = app(EmisionService::class);

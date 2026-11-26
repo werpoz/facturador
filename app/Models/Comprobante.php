@@ -9,6 +9,7 @@ use App\Enums\TipoDocumentoIdentidad;
 use App\Exceptions\ComprobanteInmutable;
 use App\Models\Concerns\RegistraBitacora;
 use App\Observers\ComprobanteObserver;
+use App\Support\NumeroALetras;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +23,7 @@ class Comprobante extends Model
 
     /** Cambios automáticos que no son acciones de una persona */
     protected array $bitacoraIgnorar = [
-        'venta_id', 'op_gravadas', 'op_exoneradas', 'op_inafectas', 'op_gratuitas', 'igv',
+        'venta_id', 'op_gravadas', 'op_exoneradas', 'op_inafectas', 'op_gratuitas', 'igv_gratuitas', 'igv',
         'sunat_codigo', 'sunat_mensaje', 'hash', 'enlace_pdf', 'enlace_xml', 'enlace_cdr',
         'intentos_envio', 'enviado_at', 'alertado_at', 'simulado', 'serie_id', 'emitido_at',
         'cliente_tipo_documento', 'cliente_numero_documento', 'cliente_razon_social', 'cliente_direccion',
@@ -40,8 +41,27 @@ class Comprobante extends Model
 
     private static bool $proteccionActiva = true;
 
+    /**
+     * Comprobantes creados en esta misma petición: sus ítems iniciales no son "cambios" que auditar.
+     * Vive en el contenedor con alcance de petición (no en una variable estática), para que no
+     * sobreviva de una petición a otra en servidores de larga duración ni entre trabajos de la cola.
+     */
+    private static function recienCreados(): \ArrayObject
+    {
+        return app('comprobantes.recien_creados');
+    }
+
+    public static function esRecienCreado(?int $id): bool
+    {
+        return $id !== null && isset(self::recienCreados()[$id]);
+    }
+
     protected static function booted(): void
     {
+        static::created(function (Comprobante $c) {
+            self::recienCreados()[$c->id] = true;
+        });
+
         static::updating(function (Comprobante $c) {
             if (! self::$proteccionActiva) {
                 return;
@@ -95,7 +115,7 @@ class Comprobante extends Model
         'empresa_id', 'venta_id', 'cliente_id', 'serie_id', 'tipo_comprobante', 'serie', 'correlativo',
         'fecha_emision', 'fecha_vencimiento', 'moneda', 'forma_pago',
         'comprobante_referencia_id', 'motivo_codigo', 'motivo_descripcion',
-        'op_gravadas', 'op_exoneradas', 'op_inafectas', 'op_gratuitas', 'igv', 'total',
+        'op_gravadas', 'op_exoneradas', 'op_inafectas', 'op_gratuitas', 'igv_gratuitas', 'igv', 'total',
         'estado', 'sunat_codigo', 'sunat_mensaje', 'hash',
         'enlace_pdf', 'enlace_xml', 'enlace_cdr', 'intentos_envio', 'enviado_at',
         'observaciones', 'user_id', 'simulado', 'alertado_at', 'emitido_at',
@@ -119,6 +139,7 @@ class Comprobante extends Model
             'op_exoneradas' => 'decimal:2',
             'op_inafectas' => 'decimal:2',
             'op_gratuitas' => 'decimal:2',
+            'igv_gratuitas' => 'decimal:2',
             'igv' => 'decimal:2',
             'total' => 'decimal:2',
         ];
@@ -205,6 +226,22 @@ class Comprobante extends Model
     {
         return $this->correlativo !== null
             && in_array($this->estado, [EstadoComprobante::Pendiente, EstadoComprobante::Error], true);
+    }
+
+    /**
+     * Leyendas que SUNAT exige en el comprobante (catálogo 52).
+     *
+     * @return array<string, string> código => texto
+     */
+    public function leyendas(): array
+    {
+        $leyendas = ['1000' => NumeroALetras::convertir($this->total, $this->moneda->value)];
+
+        if ((float) $this->op_gratuitas > 0) {
+            $leyendas['1002'] = 'TRANSFERENCIA GRATUITA DE UN BIEN Y/O SERVICIO PRESTADO GRATUITAMENTE';
+        }
+
+        return $leyendas;
     }
 
     /** F001-00000123 */

@@ -10,16 +10,16 @@
  * Resultado esperado: entre todos venden EXACTAMENTE 100; el resto es rechazado con
  * "No hay stock suficiente"; el stock termina en 0 (nunca negativo) y el kardex cuadra.
  */
-require __DIR__.'/../../vendor/autoload.php';
-$app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
-
 use App\Enums\MedioPago;
 use App\Enums\TipoComprobante;
 use App\Models\Empresa;
 use App\Services\Ventas\VentaRapidaService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Validation\ValidationException;
+
+require __DIR__.'/../../vendor/autoload.php';
+$app = require __DIR__.'/../../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $empresa = Empresa::first();
 $producto = $empresa->productos()->where('codigo', 'P002')->first();

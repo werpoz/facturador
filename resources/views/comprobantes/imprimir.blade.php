@@ -116,7 +116,7 @@
                 <td class="num">{{ rtrim(rtrim(number_format((float) $i->cantidad, 4, '.', ''), '0'), '.') }}</td>
                 @if ($formato === 'a4')<td>{{ $i->unidad_medida->value }}</td>@endif
                 <td>{{ $i->descripcion }}@if ($i->tipo_afectacion_igv->esGratuito()) <em>(gratuito)</em>@endif</td>
-                <td class="num">{{ $f($i->precio_unitario) }}</td>
+                <td class="num">{{ $i->tipo_afectacion_igv->esGratuito() ? $f(0) : $f($i->precio_unitario) }}</td>
                 <td class="num">{{ $i->tipo_afectacion_igv->esGratuito() ? $f(0) : $f($i->total) }}</td>
             </tr>
         @endforeach
@@ -141,6 +141,7 @@
     </div>
 
     <div class="letras">{{ $letras }}</div>
+    @if ($c->op_gratuitas > 0)<div class="letras">{{ $c->leyendas()['1002'] }}</div>@endif
     @if ($c->observaciones)<div class="legal">Obs.: {{ $c->observaciones }}</div>@endif
     @if ($advertencia)
         <div class="legal"><strong>{{ $advertencia }}.</strong> Este documento no es un comprobante de pago.</div>

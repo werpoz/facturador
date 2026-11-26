@@ -10,7 +10,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Registro con alcance de petición (ver Comprobante::esRecienCreado)
+        $this->app->scoped('comprobantes.recien_creados', fn () => new \ArrayObject);
     }
 
     public function boot(): void
